@@ -68,8 +68,8 @@ class IGC
     @bounds.lon = @fixes.collect(&:lon).bounds
     @bounds.alt = @fixes.collect(&:alt).bounds
     @bounds.time = @fixes[0].time..@fixes[-1].time
-    @bounds.speed = @averages.collect(&:speed).bounds
-    @bounds.climb = @averages.collect(&:climb).bounds
+    @bounds.speed = @averages.collect(&:speed).bounds(0.0, nil)
+    @bounds.climb = @averages.collect(&:climb).bounds(-0.5, 0.5)
     @bounds.glide = @averages.collect(&:glide).bounds
     self
   end

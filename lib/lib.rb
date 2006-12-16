@@ -12,8 +12,7 @@ end
 
 module Enumerable
 
-  def bounds
-    min = max = nil
+  def bounds(min = nil, max = nil)
     each do |element|
       min = element if min.nil? or element < min
       max = element if max.nil? or element > max
