@@ -17,4 +17,12 @@ class Photo
     end
   end
 
+  def time(hints)
+    if @jpeg.exif.date_time_original
+      Time.utc(*@jpeg.exif.date_time_original.to_a[0, 6].reverse) + hints.photo_tz_offset - hints.tz_offset
+    else
+      Time.at(0)
+    end
+  end
+
 end

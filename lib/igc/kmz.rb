@@ -382,7 +382,7 @@ class IGC
   def photos_folder(hints)
     return KMZ.new unless !hints.photos.empty?
     kmz = KMZ.new(KML::Folder.new(:name => "Photos", :open => 0))
-    hints.photos.each do |photo|
+    hints.photos.sort_by(&:time.to_proc(hints)).each do |photo|
       kmz.merge(photo.to_kmz(hints))
     end
     kmz
