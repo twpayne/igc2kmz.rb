@@ -1,0 +1,44 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "igc"
+require "igc/kmz"
+require "optparse"
+require "photo"
+require "uri"
+
+TIME_REGEXP = /\A([+\-])?([0-9]|1[01])(?::([0-5][0-9]))?\z/
+
+def main(argv)
+  hints = IGC.default_hints
+  OptionParser.new do |op|
+    op.on('-c', '--color COLOR', 'Color') do |arg|
+      hints.color = KML::Color.color(arg)
+    end
+    op.on("-p", "--photo-tz-offset OFFSET", TIME_REGEXP, "Photo timezone offset") do |arg|
+      hints.photo_tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == '-' ? -60 : 60)
+    end
+    op.on("-z", "--tz-offset OFFSET", TIME_REGEXP, "Timezone offset") do |arg|
+      hints.tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == '-' ? -60 : 60)
+    end
+    op.on("-w", "--width WIDTH", "Width", Integer) do |arg|
+      hints.width = arg.constrain(1)
+    end
+    op.parse!(argv)
+  end
+  igc = nil
+  argv.each do |arg|
+    if /\.igc\z/i.match(arg)
+      raise if igc
+      File.open(arg) do |io|
+        igc = IGC.new(io)
+      end
+    else
+      hints.photos << Photo.new(arg)
+    end
+  end
+  raise unless igc
+  igc.to_kmz(hints).write(igc.filename + ".kmz")
+end
+
+main(ARGV) if $0 == __FILE__
