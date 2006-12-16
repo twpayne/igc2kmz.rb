@@ -179,10 +179,6 @@ end
 
 class ZeroCenteredScale < Scale
 
-  def initialize(range, format, options = {})
-    super(range, format, options)
-  end
-  
   def normalize(value)
     case value <=> 0.0
     when -1 then 0.5 - 0.5 * value / @range.first
@@ -366,7 +362,7 @@ class IGC
     kmz = KMZ.new(KML::Folder.radio(:name => "Track log", :open => 1))
     kmz.merge(hints.stock.invisible_none_folder)
     kmz.merge(make_colored_track_log(hints, @fixes.collect(&:alt), Scale.new(hints.bounds.alt, "%d m"), :name => "Colored by altitude"))
-    #kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), ZeroCenteredScale.new(hints.bounds.climb, "%+.1f m/s"), :name => "Colored by climb", :visibility => 0))
+    kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), ZeroCenteredScale.new(hints.bounds.climb, "%+.1f m/s"), :name => "Colored by climb", :visibility => 0))
     kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), Scale.new(hints.bounds.speed, "%d km/h", 3.6), :name => "Colored by speed", :visibility => 0))
     #kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb_or_glide), BilinearScale.new(hints.bounds.speed, "+.1f m/s", 1, "%d:1", 1), :name => "Colored by climb and glide", :visibility => 0))
     kmz.merge(make_monochromatic_track_log(hints.color, hints.width, :absolute, :name => "Solid color", :visibility => 0))
