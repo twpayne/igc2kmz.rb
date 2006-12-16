@@ -3,6 +3,8 @@ require "igc"
 require "igc/analysis"
 require "kmz"
 require "task"
+require "optima"
+require "optima/kmz"
 require "ostruct"
 require "photo/kmz"
 require "rvg/rvg"
@@ -278,6 +280,7 @@ class IGC
     def stock
       stock = OpenStruct.new
       stock.kmz = KMZ.new
+      # pixel
       pixel = Magick::Image.new(1, 1) do |image|
         image.background_color = "transparent"
         image.format = "png"
@@ -285,10 +288,19 @@ class IGC
       pixel.set_channel_depth(Magick::AllChannels, 1)
       stock.pixel_url = "images/pixel.#{pixel.format.downcase}"
       stock.kmz.merge_files(stock.pixel_url => pixel.to_blob)
+      # distance
+      distance_color = KML::Color.color("magenta")
+      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 0, 4), :scale => ICON_SCALE)
+      label_style = KML::LabelStyle.new(distance_color)
+      line_style = KML::LineStyle.new(distance_color, :width => 2)
+      stock.distance_style = KML::Style.new(icon_style, label_style, line_style)
+      stock.kmz.merge_roots(stock.distance_style)
+      # photo
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, 6, 2), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
       stock.photo_style = KML::Style.new(icon_style, label_style)
       stock.kmz.merge_roots(stock.photo_style)
+      # none folders
       stock.visible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 1)
       stock.invisible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 0)
       stock
@@ -297,6 +309,9 @@ class IGC
     def default_hints
       hints = OpenStruct.new
       hints.color = KML::Color.color("red")
+      hints.complexity = 4
+      hints.distance_color = KML::Color.color("magenta")
+      hints.league = :open
       hints.photo_tz_offset = 0
       hints.photos = []
       hints.stock = stock
@@ -316,11 +331,13 @@ class IGC
       hints.bounds = @bounds
     end
     hints.igc = self
+    hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity)
     kmz = KMZ.new(KML::Folder.new(:name => @filename, :open => 1))
     kmz.merge(hints.stock.kmz)
     kmz.merge(track_log_folder(hints))
     kmz.merge(shadow_folder(hints))
     kmz.merge(photos_folder(hints))
+    kmz.merge(optima_folder(hints))
     kmz.merge(altitude_marks_folder(hints))
     kmz.merge(thermals_and_glides_folder(hints))
     kmz.merge(time_marks_folder(hints))
@@ -499,6 +516,10 @@ class IGC
       kmz.merge(make_time_marks_folder(hints, periods[0..index]))
     end
     kmz.merge(hints.stock.visible_none_folder)
+  end
+
+  def optima_folder(hints)
+    hints.optima.to_kmz(hints)
   end
 
 end
