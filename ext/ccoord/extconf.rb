@@ -1,4 +1,4 @@
-require 'mkmf'
+require "mkmf"
 
-$CFLAGS += ' -ffast-math'
-create_makefile('ccoord')
+$CFLAGS += " -ffast-math"
+create_makefile("ccoord")

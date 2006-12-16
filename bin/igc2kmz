@@ -12,14 +12,14 @@ TIME_REGEXP = /\A([+\-])?([0-9]|1[01])(?::([0-5][0-9]))?\z/
 def main(argv)
   hints = IGC.default_hints
   OptionParser.new do |op|
-    op.on('-c', '--color COLOR', 'Color') do |arg|
+    op.on("-c", "--color COLOR", "Color") do |arg|
       hints.color = KML::Color.color(arg)
     end
     op.on("-p", "--photo-tz-offset OFFSET", TIME_REGEXP, "Photo timezone offset") do |arg|
-      hints.photo_tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == '-' ? -60 : 60)
+      hints.photo_tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == "-" ? -60 : 60)
     end
     op.on("-z", "--tz-offset OFFSET", TIME_REGEXP, "Timezone offset") do |arg|
-      hints.tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == '-' ? -60 : 60)
+      hints.tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == "-" ? -60 : 60)
     end
     op.on("-w", "--width WIDTH", "Width", Integer) do |arg|
       hints.width = arg.constrain(1)

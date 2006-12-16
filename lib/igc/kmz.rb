@@ -150,7 +150,7 @@ class Scale
     width = 64
     multiplied_range = Range.new(@multiplier * @range.first, @multiplier * @range.last, @range.exclude_end?)
     Magick::RVG.new(width + 2 * border, height + 2 * border) do |canvas|
-      canvas.styles(:font_family => 'Verdana', :font_size => 9, :font_weight => 'bold')
+      canvas.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold")
       i = 3 * (Math.log10(multiplied_range.last - multiplied_range.first).to_i - 2)
       step = [1.0, 2.5, 5.0][i % 3] * (10 ** (i / 3))
       while (multiplied_range.last - multiplied_range.first) / step > 15
@@ -171,7 +171,7 @@ class Scale
         canvas.line(border, border + y, border + 4, border + y).styles(:stroke => color)
       end
     end.draw.outline do
-      self.background_color = 'transparent'
+      self.background_color = "transparent"
     end
   end
 
@@ -475,7 +475,7 @@ class IGC
       if time < fix.time
         periods.each do |period|
           if (60 * time.min + time.sec) % period.period == 0
-            name = (time + hints.tz_offset).strftime('%H:%M')
+            name = (time + hints.tz_offset).strftime("%H:%M")
             folder.add(fix.to_kml(hints, name, :absolute, *period.children))
             break
           end
@@ -488,7 +488,7 @@ class IGC
   end
 
   def time_marks_folder(hints)
-    folder = KML::Folder.radio(:name => 'Time marks', :open => 0)
+    folder = KML::Folder.radio(:name => "Time marks", :open => 0)
     styles = []
     period_struct = Struct.new(:period, :children)
     periods = [[3600, 3, 0], [1800, 3, 0], [900, 2, 1], [300, 1, 2], [60, 0, 3]].collect do |period, x, label_scale_index|
