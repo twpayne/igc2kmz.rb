@@ -11,6 +11,8 @@ static VALUE id_lat;
 static VALUE id_lon;
 static VALUE id_new;
 
+void Init_ccoord(void);
+
 static inline VALUE
 rb_coord_new(double lat, double lon, double alt)
 {
