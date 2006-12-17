@@ -343,6 +343,7 @@ class IGC
     rows << ["Date", (@fixes[0].time + hints.tz_offset).strftime("%A, %d %B %Y")]
     rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     rows << ["Site", @header[:site]] if @header[:site]
+    rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
     description = KML::Description.new(KML::CData.new("<table>", rows.collect do |th, td|
       "<tr><th>#{th}</th><td>#{td}</td></tr>"
     end.join, "</table>"))
