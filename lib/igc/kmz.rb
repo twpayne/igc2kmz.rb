@@ -288,18 +288,13 @@ class IGC
       pixel.set_channel_depth(Magick::AllChannels, 1)
       stock.pixel_url = "images/pixel.#{pixel.format.downcase}"
       stock.kmz.merge_files(stock.pixel_url => pixel.to_blob)
-      # distance
-      distance_color = KML::Color.color("magenta")
-      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
-      label_style = KML::LabelStyle.new(distance_color)
-      line_style = KML::LineStyle.new(distance_color, :width => 2)
-      stock.distance_style = KML::Style.new(icon_style, label_style, line_style)
-      stock.kmz.merge_roots(stock.distance_style)
-      # photo
-      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 46), :scale => ICON_SCALE)
-      label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
-      stock.photo_style = KML::Style.new(icon_style, label_style)
-      stock.kmz.merge_roots(stock.photo_style)
+      # optima
+      color = KML::Color.color("magenta")
+      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => IGC::ICON_SCALE)
+      label_style = KML::LabelStyle.new(color)
+      line_style = KML::LineStyle.new(color, :width => 2)
+      stock.optima_style = KML::Style.new(icon_style, label_style, line_style)
+      stock.kmz.merge_roots(stock.optima_style)
       # none folders
       stock.visible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 1)
       stock.invisible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 0)
@@ -310,7 +305,6 @@ class IGC
       hints = OpenStruct.new
       hints.color = KML::Color.color("red")
       hints.complexity = 4
-      hints.distance_color = KML::Color.color("magenta")
       hints.league = :open
       hints.photo_tz_offset = 0
       hints.photos = []
@@ -414,9 +408,12 @@ class IGC
 
   def photos_folder(hints)
     return KMZ.new if hints.photos.empty?
-    kmz = KMZ.new(KML::Folder.new(:name => "Photos", :open => 0))
+    icon_style = KML::IconStyle.new(KML::Icon.palette(4, 46), :scale => ICON_SCALE)
+    label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
+    style = KML::Style.new(icon_style, label_style)
+    kmz = KMZ.new(KML::Folder.new(:name => "Photos", :open => 0), :roots => [style])
     hints.photos.sort_by(&:time.to_proc(hints)).each do |photo|
-      kmz.merge(photo.to_kmz(hints))
+      kmz.merge(photo.to_kmz(hints, :styleUrl => style.url))
     end
     kmz
   end

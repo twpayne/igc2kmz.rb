@@ -8,7 +8,7 @@ class Photo
     name = File.basename(@uri.path)
     src = @uri.scheme ? @uri : "images/#{name}"
     description = KML::Description.new(KML::CData.new("<img alt=\"#{name}\" src=\"#{src}\" width=\"#{@jpeg.width}\" height=\"#{@jpeg.height}\" />"))
-    placemark = KML::Placemark.new(point, KML::Name.new(name), description, KML::Snippet.new, KML::StyleUrl.new(hints.stock.photo_style.url), options)
+    placemark = KML::Placemark.new(point, KML::Name.new(name), description, KML::Snippet.new, options)
     files = {}
     files["images/#{name}"] = File.open(@uri.to_s) unless @uri.scheme
     KMZ.new(placemark, :files => files)

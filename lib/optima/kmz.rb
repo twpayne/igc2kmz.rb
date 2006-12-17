@@ -4,7 +4,7 @@ require "optima"
 class Optimum
 
   def to_kmz(hints, folder_options = {})
-    name = (@multiplier.zero? ? "%s (%.1fkm)" : "%s (%.1fkm, %.2f points)") % [@flight_type, distance / 1000.0, score]
+    name = (@multiplier.zero? ? "%s (%.1fkm)" : "%s (%.1fkm, %.1f points)") % [@flight_type, distance / 1000.0, score]
     folder = KML::Folder.hide_children(KML::Name.new(name), folder_options)
     if @circuit
       coords = @fixes[1...-1]
@@ -17,11 +17,11 @@ class Optimum
       point = KML::Point.new(:coordinates => coord0.halfway_to(coord1))
       multi_geometry = KML::MultiGeometry.new(line_string, point)
       name = "%.1fkm" % (coord0.distance_to(coord1) / 1000)
-      placemark = KML::Placemark.new(multi_geometry, :name => name, :styleUrl => hints.stock.distance_style.url)
+      placemark = KML::Placemark.new(multi_geometry, :name => name, :styleUrl => hints.stock.optima_style.url)
       folder.add(placemark)
     end
     @fixes.each_with_index do |fix, index|
-      folder.add(fix.to_kml(hints, @names[index], nil, :styleUrl => hints.stock.distance_style.url))
+      folder.add(fix.to_kml(hints, @names[index], nil, :styleUrl => hints.stock.optima_style.url))
     end
     KMZ.new(folder)
   end
