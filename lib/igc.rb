@@ -84,23 +84,25 @@ class IGC
           date = Date.new((year < 70 ? 2000 : 1900) + year, $3.to_i, $2.to_i)
         end
         @header[:date] ||= date
-      when /\AH([FOP])DTM(\d\d\d)[A-Z]*:(.*?)\s*\z/i
-        (@header[:datum] ||= {})[$2.to_i] = $3
+      when /\AH([FOP])DTM(\d\d\d)[A-Z]*:(.*?)\z/i
+        value = $3.strip
+        (@header[:datum] ||= {})[$2.to_i] = value unless value.empty?
       when /\AH([FOP])FXA(\d{3})\s*\z/i
         @header[:fix_accuracy] = $2.to_i
-      when /\AH([FOP])(#{HEADERS.keys.join("|")})[ A-Z]*:(.*?)\s*\z/io
-        @header[HEADERS[$2]] = $3
+      when /\AH([FOP])(#{HEADERS.keys.join("|")})[ A-Z]*:(.*?)\z/io
+        value = $3.strip
+        @header[HEADERS[$2]] = value unless value.empty?
       when /\AI(\d\d)(\d{4}[0-9A-Z]{3})*\s*\z/i
         unless $1.to_i.zero?
           $2.scan(/(\d\d)(\d\d)([0-9A-Z]{3})/) do |md|
             @extensions << Extension.new(($1.to_i - 1)...$2.to_i, $3.intern)
           end
         end
-      when /\AC(\d\d)(\d\d)(\d{3})([NS])(\d{3})(\d\d)(\d{3})([EW])(.*?)\s*\z/i
+      when /\AC(\d\d)(\d\d)(\d{3})([NS])(\d{3})(\d\d)(\d{3})([EW])(.*)\z/i
         lat = Radians.new_from_dmsh($1.to_i, $2.to_i + 0.001 * $3.to_i, 0, $4)
         lon = Radians.new_from_dmsh($5.to_i, $6.to_i + 0.001 * $7.to_i, 0, $8)
-        @route << Waypoint.new(lat, lon, 0, $9)
-      when /\AB(\d\d)(\d\d)(\d\d)(\d\d)(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5}|-\d{4})(\d{5}|-\d{4})(.*?)\s*\z/i
+        @route << Waypoint.new(lat, lon, 0, $9.strip)
+      when /\AB(\d\d)(\d\d)(\d\d)(\d\d)(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5}|-\d{4})(\d{5}|-\d{4})(.*)\z/i
         bdigest << line
         hour = $1.to_i
         min = $2.to_i
@@ -116,8 +118,8 @@ class IGC
         end
         @fixes << Fix.new(time, lat, lon, $11.to_i, $10.intern, $12.to_i, extensions)
       when /\AL/i
-      when /\AG(.*)\s*\z/i
-        @security_code << $1
+      when /\AG(.*)\z/i
+        @security_code << $1.strip
       when /\A\s*\z/
       else
         @unknowns << line
