@@ -1,4 +1,5 @@
 require "abbrev"
+require "date"
 
 module Comparable
 
@@ -83,6 +84,14 @@ class Array
       end
     end
     return left == length ? nil : left
+  end
+
+end
+
+class Date
+
+  def to_time
+    Time.utc(year, month, day)
   end
 
 end

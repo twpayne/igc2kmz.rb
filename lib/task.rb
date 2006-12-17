@@ -43,7 +43,7 @@ class Task
 
   end
 
-  class StartCircle
+  class StartCircle < Circle
 
     def initialize(lat, lon, alt, name, radius, start_time)
       super(lat, lon, alt, name, radius)
@@ -65,7 +65,7 @@ class Task
   class StartOfSpeedSection < StartCircle
 
     def intersect?(fix0, fix1)
-      fix0.timestamp < @start_time and super and fix0
+      @start_time <= fix0.time and super and fix0
     end
 
   end
@@ -73,7 +73,7 @@ class Task
   class EndOfSpeedSection < Circle
   end
 
-  class Goal < Circle
+  class GoalCircle < Circle
 
     DEFAULT_RADIUS = 400
 
@@ -82,28 +82,37 @@ class Task
   class GoalLine < Point
 
     attr_reader :length
-    attr_reader :bearing
+    attr_reader :axis
 
-    def initialize(lat, lon, alt, length, bearing)
-      super(lat, lon, alt)
+    def initialize(lat, lon, alt, name, length, axis)
+      super(lat, lon, alt, name)
       @length = length
-      @bearing = bearing
+      @axis = axis
+      @left = destination_at(@axis - Math::PI / 2.0, @length / 2.0)
+      @right = destination_at(@axis + Math::PI / 2.0, @length / 2.0)
     end
 
-    def intersect(fix0, fix1)
-      false # FIXME
+    def intersect?(fix0, fix1)
+      n1 = (fix1.lon - fix0.lon) * (@left.lat - fix0.lat) - (fix1.lat - fix0.lat) * (@left.lon - fix0.lon)
+      return nil if n1.zero?
+      d = (fix1.lat - fix0.lat) * (@right.lon - @left.lon) - (fix1.lon - fix0.lon) * (@right.lat - @left.lat)
+      return nil if d.zero?
+      return nil unless (0.0..1.0).include?(n1 / d)
+      n2 = (@right.lon - @left.lon) * (@left.lat - fix0.lat) - (@right.lat - @left.lat) * (@left.lon - fix0.lon)
+      return nil if n2.zero?
+      (0.0..1.0).include?(n2 / d) ? fix1 : nil
     end
 
   end
 
-  attr_reader :name
+  attr_reader :competition_name
   attr_reader :number
-  attr_reader :objects
+  attr_reader :course
 
-  def initialize(name, number, objects)
-    @name = name
+  def initialize(competition_name, number, course)
+    @competition_name = competition_name
     @number = number
-    @objects = objects
+    @course = course
   end
 
 end

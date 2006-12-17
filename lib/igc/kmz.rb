@@ -7,6 +7,7 @@ require "optima"
 require "optima/kmz"
 require "ostruct"
 require "photo/kmz"
+require "task/kmz"
 require "rvg/rvg"
 
 class KML
@@ -191,42 +192,6 @@ class ZeroCenteredScale < Scale
 
 end
 
-class Task
-
-  class Point < Coord
-
-    def to_kml
-      KML::Placemark.new(kml_geometry, KML::Name.new(@name), KML::Description.new(description))
-    end
-
-    def description
-      nil
-    end
-
-    def kml_geometry
-      KML::Point.new(:coordinates => self)
-    end
-
-  end
-
-  class Circle < Point
-
-    def kml_geometry
-      KML::LineString.new(KML::Coordinates.circle(self, radius), :tessellate => 1)
-    end
-
-  end
-
-  class GoalLine < Point
-
-    def kml_geometry
-      KML::LineString.new(:coordinates => [destination_at(@bearing + Math::PI / 2, @length / 2), desintation_at(@bearing - Math::PI / 2, @length / 2)], :tessellate => 1)
-    end
-
-  end
-
-end
-
 class IGC
 
   ICON_SCALE = 0.5
@@ -234,8 +199,8 @@ class IGC
 
   class Fix
 
-    def to_kml(hints, name = nil, altitude_mode = :absolute, *children)
-      point = KML::Point.new(:coordinates => self, :altitudeMode => altitude_mode)
+    def to_kml(hints, name, point_options, *children)
+      point = KML::Point.new(KML::Coordinates.new(self), point_options)
       a = "#{@alt}m"
       t = (@time + hints.tz_offset).strftime("%H:%M:%S")
       case name
@@ -295,6 +260,10 @@ class IGC
       line_style = KML::LineStyle.new(color, :width => 2)
       stock.optima_style = KML::Style.new(icon_style, label_style, line_style)
       stock.kmz.merge_roots(stock.optima_style)
+      # task
+      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => IGC::ICON_SCALE)
+      stock.task_style = KML::Style.new(icon_style)
+      stock.kmz.merge_roots(stock.task_style)
       # none folders
       stock.visible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 1)
       stock.invisible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 0)
@@ -331,18 +300,23 @@ class IGC
       hints.bounds = @bounds
     end
     hints.igc = self
-    hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity)
+    hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity) unless hints.task
     rows = []
     rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
     rows << ["Date", (@fixes[0].time + hints.tz_offset).strftime("%A, %d %B %Y")]
-    rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
+    if hints.task
+      rows << ["Competition", hints.task.competition_name] if hints.task.competition_name
+      rows << ["Task", hints.task.number] if hints.task.number
+    end
     rows << ["Site", @header[:site]] if @header[:site]
+    rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
     description = KML::Description.new(KML::CData.new("<table>", rows.collect do |th, td|
       "<tr><th>#{th}</th><td>#{td}</td></tr>"
     end.join, "</table>"))
     fields = []
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
+    fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
     fields << @header[:site] if @header[:site]
     fields << (@fixes[0].time + hints.tz_offset).strftime("%d %b %Y")
     snippet = KML::Snippet.new(fields.join(", "), :maxlines => 1)
@@ -350,8 +324,9 @@ class IGC
     kmz.merge(hints.stock.kmz)
     kmz.merge(track_log_folder(hints))
     kmz.merge(shadow_folder(hints))
-    kmz.merge(photos_folder(hints))
-    kmz.merge(optima_folder(hints))
+    kmz.merge(photos_folder(hints)) if hints.photos and !hints.photos.empty?
+    kmz.merge(optima_folder(hints)) if hints.optima
+    kmz.merge(competition_folder(hints)) if hints.task
     kmz.merge(altitude_marks_folder(hints))
     kmz.merge(thermals_and_glides_folder(hints))
     kmz.merge(time_marks_folder(hints))
@@ -407,7 +382,6 @@ class IGC
   end
 
   def photos_folder(hints)
-    return KMZ.new if hints.photos.empty?
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 46), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
     style = KML::Style.new(icon_style, label_style)
@@ -430,7 +404,7 @@ class IGC
       folders[type] = KML::Folder.hide_children(:name => type.to_s.sub(/\A.*::(Max|Min)imum/) { "#{$1}ima" }, :visibility => 0)
     end
     @alt_extremes.each do |extreme|
-      folders[extreme.class].add(extreme.fix.to_kml(hints, :alt, :absolute, :styleUrl => styles[scale.discretize(extreme.fix.alt)].url))
+      folders[extreme.class].add(extreme.fix.to_kml(hints, :alt, {:altitudeMode => :absolute}, :styleUrl => styles[scale.discretize(extreme.fix.alt)].url))
     end
     folder = KML::Folder.new(folders[Extreme::Maximum], folders[Extreme::Minimum], :name => "Altitude marks", :open => 0, :visibility => 0)
     KMZ.new(folder, :roots => styles)
@@ -497,7 +471,7 @@ class IGC
 
   def make_time_marks_folder(hints, periods)
     folder = KML::Folder.hide_children(:name => "#{periods[-1].period / 60} minute", :visibility => 0)
-    folder.add(@fixes[0].to_kml(hints, :time, :absolute, *periods[0].children))
+    folder.add(@fixes[0].to_kml(hints, :time, {:altitudeMode => :absolute}, *periods[0].children))
     time = @fixes[0].time
     min_period = periods[-1].period
     time += min_period - (60 * time.min + time.sec) % min_period
@@ -506,14 +480,14 @@ class IGC
         periods.each do |period|
           if (60 * time.min + time.sec) % period.period == 0
             name = (time + hints.tz_offset).strftime("%H:%M")
-            folder.add(fix.to_kml(hints, name, :absolute, *period.children))
+            folder.add(fix.to_kml(hints, name, {:altitudeMode => :absolute}, *period.children))
             break
           end
         end
         time += min_period
       end
     end
-    folder.add(@fixes[-1].to_kml(hints, :time, :absolute, *periods[0].children))
+    folder.add(@fixes[-1].to_kml(hints, :time, {:altitudeMode => :absolute}, *periods[0].children))
     KMZ.new(folder)
   end
 
@@ -537,6 +511,36 @@ class IGC
 
   def optima_folder(hints)
     hints.optima.to_kmz(hints)
+  end
+
+  def task_marks_folder(hints)
+    task = hints.task
+    folder = KML::Folder.new(:name => "Task marks", :open => 0, :visibility => 0)
+    index = 0
+    index += 1 while task.course[index].is_a?(Task::TakeOff)
+    turnpoint_number = 0
+    @fixes.each_cons(2) do |fix0, fix1|
+      object = task.course[index]
+      fix = object.intersect?(fix0, fix1)
+      next unless fix
+      if object.is_a?(Task::Turnpoint)
+        turnpoint_number += 1
+        label = "T#{turnpoint_number}"
+      else
+        label = object.label
+      end
+      name = "#{label} #{(fix.time + hints.tz_offset).strftime("%H:%M:%S")}"
+      folder.add(fix.to_kml(hints, name, {:altitudeMode => :absolute, :extrude => 1}, :styleUrl => hints.stock.task_style.url, :visibility => 0))
+      index += 1
+      break if index == task.course.length
+    end
+    KMZ.new(folder)
+  end
+
+  def competition_folder(hints)
+    kmz = KMZ.new(KML::Folder.new(:name => "Competition", :open => 0))
+    kmz.merge(hints.task.to_kmz(hints, :open => 0))
+    kmz.merge(task_marks_folder(hints))
   end
 
 end
