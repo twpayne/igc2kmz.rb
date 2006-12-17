@@ -18,6 +18,9 @@ def main(argv)
     op.on("-k", "--complexity COMPLEXITY", Integer, "Complexity") do |arg|
       hints.complexity = arg
     end
+    op.on("-P", "--pilot NAME", String, "Pilot") do |arg|
+      hints.pilot = arg
+    end
     op.on("-p", "--photo-tz-offset OFFSET", TIME_REGEXP, "Photo timezone offset") do |arg|
       hints.photo_tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == "-" ? -60 : 60)
     end

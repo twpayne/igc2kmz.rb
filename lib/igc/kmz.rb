@@ -315,7 +315,6 @@ class IGC
       hints.photo_tz_offset = 0
       hints.photos = []
       hints.stock = stock
-      hints.tz_offset = 0
       hints.width = 2
       hints
     end
@@ -324,6 +323,13 @@ class IGC
 
   def to_kmz(hints = nil)
     hints = hints ? hints.clone : self.class.default_hints
+    unless hints.tz_offset
+      if @header[:timezone_offset]
+        hints.tz_offset = 60 * @header[:timezone_offset].to_i
+      else
+        hints.tz_offset = 0
+      end
+    end
     analyse
     if hints.bounds
       hints.bounds.merge(@bounds)
@@ -332,7 +338,20 @@ class IGC
     end
     hints.igc = self
     hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity)
-    kmz = KMZ.new(KML::Folder.new(:name => @filename, :open => 1))
+    rows = []
+    rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
+    rows << ["Date", (@fixes[0].time + hints.tz_offset).strftime("%A, %d %B %Y")]
+    rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
+    rows << ["Site", @header[:site]] if @header[:site]
+    description = KML::Description.new(KML::CData.new("<table>", rows.collect do |th, td|
+      "<tr><th>#{th}</th><td>#{td}</td></tr>"
+    end.join, "</table>"))
+    fields = []
+    fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
+    fields << @header[:site] if @header[:site]
+    fields << (@fixes[0].time + hints.tz_offset).strftime("%d %b %Y")
+    snippet = KML::Snippet.new(fields.join(", "), :maxlines => 1)
+    kmz = KMZ.new(KML::Folder.new(description, snippet, :name => @filename, :open => 1))
     kmz.merge(hints.stock.kmz)
     kmz.merge(track_log_folder(hints))
     kmz.merge(shadow_folder(hints))
