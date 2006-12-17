@@ -5,7 +5,37 @@ class Optimum
 
   def to_kmz(hints, folder_options = {})
     name = (@multiplier.zero? ? "%s (%.1fkm)" : "%s (%.1fkm, %.1f points)") % [@flight_type, distance / 1000.0, score]
-    folder = KML::Folder.hide_children(KML::Name.new(name), folder_options)
+    rows = []
+    total = distance
+    if @circuit
+      if @fixes.length == 4
+        rows << ["#{@names[1]} - #{@names[2]}", "%.1fkm" % (@fixes[1].distance_to(@fixes[2]) / 1000.0)]
+        rows << ["#{@names[2]} - #{@names[1]}", "%.1fkm" % (@fixes[2].distance_to(@fixes[1]) / 1000.0)]
+      else
+        (1...(@fixes.length - 2)).each do |index|
+          leg = @fixes[index].distance_to(@fixes[index + 1])
+          rows << ["#{@names[index]} - #{@names[index + 1]}", "%.1fkm (%.1f%%)" % [leg / 1000.0, 100.0 * leg / total]]
+        end
+        leg = @fixes[-2].distance_to(@fixes[1])
+        rows << ["#{@names[-2]} - #{@names[1]}", "%.1fkm (%.1f%%)" % [leg / 1000.0, 100.0 * leg / total]]
+      end
+    else
+      (0...(@fixes.length - 1)).each do |index|
+        rows << ["#{@names[index]} - #{@names[index + 1]}", "%.1fkm" % (@fixes[index].distance_to(@fixes[index + 1]) / 1000.0)]
+      end
+    end
+    unless @multiplier.zero?
+      rows << ["Total", "%.1fkm" % (total / 1000.0)]
+      rows << ["Multiplier", "\xc3\x97 %.1f" % @multiplier]
+      rows << ["Score", "<b>%.1f points</b>" % score]
+    end
+    if @circuit
+      rows << ["#{@names[0]} - #{@names[-1]}", "%.1fkm" % (@fixes[0].distance_to(@fixes[-1]) / 1000.0)]
+    end
+    description = KML::Description.new(KML::CData.new("<table>", rows.collect do |th, td|
+      "<tr><th>#{th}</th><td>#{td}</td></tr>"
+    end.join, "</table>"))
+    folder = KML::Folder.hide_children(KML::Name.new(name), description, KML::Snippet.new, folder_options)
     if @circuit
       coords = @fixes[1...-1]
       coords << @fixes[1] if @fixes.length > 4
