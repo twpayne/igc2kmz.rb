@@ -21,7 +21,7 @@ class Optimum
       folder.add(placemark)
     end
     @fixes.each_with_index do |fix, index|
-      folder.add(fix.to_kml(hints, @names[index], nil, :styleUrl => hints.stock.optima_style.url))
+      folder.add(fix.to_kml(hints, @names[index], {:altitudeMode => :absolute, :extrude => 1}, :styleUrl => hints.stock.optima_style.url))
     end
     KMZ.new(folder)
   end
