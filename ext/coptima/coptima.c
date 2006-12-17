@@ -670,17 +670,17 @@ rb_Optima_new_from_fixes_frcfd(VALUE rb_fixes, VALUE rb_complexity)
 		if (5 <= complexity) {
 			static const char *names[] = { "BD", "B1", "B2", "B3", "BA" };
 			int indexes_fai[5];
-			track_t *t = track_downsample(track, 0.1 / R);
-			track_compute_circuit_tables(t, 3.0 / R);
+			track_t *downsampled_track = track_downsample(track, 0.1 / R);
+			track_compute_circuit_tables(downsampled_track, 3.0 / R);
 			bound = 15.0 / R;
-			bound = track_triangle_fai(t, bound, indexes_fai);
-			bound = track_triangle_fai(track, bound, indexes_fai);
+			bound = track_triangle_fai(downsampled_track, bound, indexes_fai);
+			bound = track_triangle_fai(track, nextafter(bound, 0.0), indexes_fai);
 			VALUE rb_triangle_fai = rb_optimum_new(rb_fixes, 5, indexes_fai, names, "Triangle FAI", 1.4, 1);
-			bound = track_triangle(t, bound, indexes);
-			bound = track_triangle(track, bound, indexes);
+			bound = track_triangle(downsampled_track, bound, indexes);
+			bound = track_triangle(track, nextafter(bound, 0.0), indexes);
 			rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 5, indexes[0] == -1 ? indexes_fai : indexes, names, "Triangle plat", 1.2, 1));
 			rb_ary_push_unless_nil(rb_optima, rb_triangle_fai);
-			track_delete(t);
+			track_delete(downsampled_track);
 			if (6 <= complexity) {
 				static const char *names[] = { "BD", "B1", "B2", "B3", "B4", "BA" };
 				track_quadrilateral(track, 15.0 / R, indexes);
