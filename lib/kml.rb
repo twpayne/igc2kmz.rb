@@ -251,34 +251,29 @@ class KML
 
     class << self
 
-      def palette(index, x, y, w = 32, h = 32)
-        new(:href => "root://icons/palette-#{index}.png", :x => x * w, :y => y * h, :w => w, :h => h)
+      def palette(pal, icon, extra = nil)
+        new(:href => "http://maps.google.com/mapfiles/kml/pal#{pal}/icon#{icon}#{extra}.png")
       end
 
       def default
-        palette(3, 7, 1)
+        palette(3, 55)
       end
 
-      def character(c)
+      def character(c, extra = nil)
         case c
-        when ?1..?9
-          index = c - ?1
-          palette(3, index % 8, 7 - 2 * (index / 8))
-        when ?A..?Z
-          index = c - ?A
-          palette(5, index % 8, 2 * (index / 8))
-        else
-          default
+        when ?1..?9 then palette(3, (c - ?1) % 8 + 16 * ((c - ?1) / 8), extra)
+        when ?A..?Z then palette(5, (c - ?A) % 8 + 16 * ((31 - c + ?A) / 8), extra)
+        else default
         end
       end
 
       def null
-        palette(2, 7, 6)
+        palette(2, 15)
       end
 
-      def number(n)
+      def number(n, extra = nil)
         case n
-        when 1..10 then palette(3, (n - 1) % 8, 7 - 2 * ((n - 1) / 8))
+        when 1..10 then palette(3, (n - 1) % 8 + 16 * ((n - 1) / 8), extra)
         else default
         end
       end

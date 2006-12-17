@@ -290,13 +290,13 @@ class IGC
       stock.kmz.merge_files(stock.pixel_url => pixel.to_blob)
       # distance
       distance_color = KML::Color.color("magenta")
-      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 0, 4), :scale => ICON_SCALE)
+      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(distance_color)
       line_style = KML::LineStyle.new(distance_color, :width => 2)
       stock.distance_style = KML::Style.new(icon_style, label_style, line_style)
       stock.kmz.merge_roots(stock.distance_style)
       # photo
-      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 6, 2), :scale => ICON_SCALE)
+      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 46), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
       stock.photo_style = KML::Style.new(icon_style, label_style)
       stock.kmz.merge_roots(stock.photo_style)
@@ -404,7 +404,7 @@ class IGC
   def altitude_marks_folder(hints)
     scale = Scale.new(hints.bounds.alt, "%d m")
     styles = scale.pixels.collect do |pixel|
-      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 0, 4), :scale => ICON_SCALE)
+      icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(KML::Color.pixel(pixel))
       KML::Style.new(icon_style, label_style)
     end
@@ -421,11 +421,11 @@ class IGC
 
   def thermals_and_glides_folder(hints)
     folder = KML::Folder.new(:name => "Thermals and glides", :open => 0, :visibility => 0)
-    icon_style = KML::IconStyle.new(KML::Icon.palette(4, 0, 4), :scale => ICON_SCALE)
+    icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(KML::Color.new("ff0033ff"), :scale => LABEL_SCALES[2])
     line_style = KML::LineStyle.new(KML::Color.new("880033ff"), :width => 4)
     thermal_style = KML::Style.new(icon_style, label_style, line_style)
-    icon_style = KML::IconStyle.new(KML::Icon.palette(4, 0, 4), :scale => ICON_SCALE)
+    icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(KML::Color.new("ffff3300"), :scale => LABEL_SCALES[2])
     line_style = KML::LineStyle.new(KML::Color.new("88ff3300"), :width => 4)
     glide_style = KML::Style.new(icon_style, label_style, line_style)
@@ -504,8 +504,8 @@ class IGC
     folder = KML::Folder.radio(:name => "Time marks", :open => 0)
     styles = []
     period_struct = Struct.new(:period, :children)
-    periods = [[3600, 3, 0], [1800, 3, 0], [900, 2, 1], [300, 1, 2], [60, 0, 3]].collect do |period, x, label_scale_index|
-      icon_style = KML::IconStyle.new(KML::Icon.palette(4, x, 4), :scale => ICON_SCALE)
+    periods = [[3600, 27, 0], [1800, 27, 0], [900, 26, 1], [300, 25, 2], [60, 24, 3]].collect do |period, icon, label_scale_index|
+      icon_style = KML::IconStyle.new(KML::Icon.palette(4, icon), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(KML::Color.new("ff00ffff"), :scale => LABEL_SCALES[label_scale_index])
       style = KML::Style.new(icon_style, label_style)
       styles << style
