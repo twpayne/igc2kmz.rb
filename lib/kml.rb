@@ -213,12 +213,12 @@ class KML
         stop += 2 * Math::PI while stop < start
         from = (decimation * start / (2.0 * Math::PI)).to_i + 1
         to = (decimation * stop / (2.0 * Math::PI)).to_i
-        coordinates = [center.destination_at(start, radius)]
+        coords = [center.destination_at(start, radius)]
         (from..to).each do |i|
-          coordinates << center.destination_at(2 * Math::PI * i / decimation, radius)
+          coords << center.destination_at(2 * Math::PI * i / decimation, radius)
         end 
-        coordinates << center.destination_at(stop, radius)
-        new(*coordinates)
+        coords << center.destination_at(stop, radius)
+        new(*coords)
       end
 
       def circle(center, radius, alt = nil, decimation = nil)
