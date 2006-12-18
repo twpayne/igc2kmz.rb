@@ -9,8 +9,10 @@ class Photo
     @uri = uri.is_a?(URI) ? uri : URI.parse(uri)
     if @uri.scheme
       @uri.open do |io|
-        raise "unsupported content type #{io.content_type}" unless io.content_type.downcase == "image/jpeg"
-        @jpeg = EXIFR::JPEG.new(io)
+        case io.content_type.downcase
+        when "image/jpeg" then @jpeg = EXIFR::JPEG.new(io)
+        else raise "unsupported content type #{io.content_type}"
+        end
       end
     else
       File.open(@uri.to_s) do |io|
