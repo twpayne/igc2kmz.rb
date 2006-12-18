@@ -110,10 +110,12 @@ class IGC
     end
   end
 
-  def remove_adjacent_extremes(extremes)
+  def discard_extremes(extremes, discard)
+    return extremes if discard.empty?
     result = []
     best = nil
     extremes.each do |extreme|
+      next if discard[extreme]
       if best.nil?
         best = extreme
       elsif extreme.class == best.class
@@ -174,37 +176,39 @@ class IGC
     when  1 then extremes << Extreme::Maximum.new(last_extreme_fix)
     end
     loop do
-      discard = {}
+      discard0 = {}
       extremes.each_cons(4) do |extreme0, extreme1, extreme2, extreme3|
         dz03 = (extreme3.fix.alt - extreme0.fix.alt).abs
         dz12 = (extreme2.fix.alt - extreme1.fix.alt).abs
         if dz12 < absolute or dz12.to_f / dz03 < relative
           case extreme0
           when Extreme::Minimum
-            discard[extreme0.fix.alt < extreme2.fix.alt ? extreme2 : extreme0] = true
-            discard[extreme1.fix.alt > extreme3.fix.alt ? extreme3 : extreme1] = true
+            discard0[extreme0.fix.alt < extreme2.fix.alt ? extreme2 : extreme0] = true
+            discard0[extreme1.fix.alt > extreme3.fix.alt ? extreme3 : extreme1] = true
           when Extreme::Maximum
-            discard[extreme0.fix.alt > extreme2.fix.alt ? extreme2 : extreme0] = true
-            discard[extreme1.fix.alt < extreme3.fix.alt ? extreme3 : extreme1] = true
+            discard0[extreme0.fix.alt > extreme2.fix.alt ? extreme2 : extreme0] = true
+            discard0[extreme1.fix.alt < extreme3.fix.alt ? extreme3 : extreme1] = true
           end
         end
       end
-      break if discard.empty?
-      extremes.delete_if { |extreme| discard[extreme] }
-      extremes = remove_adjacent_extremes(extremes)
-      discard = {}
+      extremes = discard_extremes(extremes, discard0)
+      discard1 = {}
       extremes.each_cons(3) do |extreme0, extreme1, extreme2|
         case extreme1
         when Extreme::Maximum
-          discard[extreme1] = true if extreme1.fix.alt < extreme0.fix.alt or extreme1.fix.alt < extreme2.fix.alt
+          discard1[extreme1] = true if extreme1.fix.alt < extreme0.fix.alt or extreme1.fix.alt < extreme2.fix.alt
         when Extreme::Minimum
-          discard[extreme1] = true if extreme1.fix.alt > extreme0.fix.alt or extreme1.fix.alt > extreme2.fix.alt
+          discard1[extreme1] = true if extreme1.fix.alt > extreme0.fix.alt or extreme1.fix.alt > extreme2.fix.alt
         end
       end
-      unless discard.empty?
-        extremes.delete_if { |extreme| discard[extreme] }
-        extremes = remove_adjacent_extremes(extremes)
+      extremes = discard_extremes(extremes, discard1)
+      discard2 = {}
+      if extremes.length > 2
+        discard2[extremes[ 0]] = true if (extremes[ 1].fix.alt - extremes[ 0].fix.alt).abs < absolute
+        discard2[extremes[-1]] = true if (extremes[-1].fix.alt - extremes[-2].fix.alt).abs < absolute
       end
+      extremes = discard_extremes(extremes, discard2)
+      break if discard0.empty? and discard1.empty? and discard2.empty?
     end
     @alt_extremes = extremes
   end
