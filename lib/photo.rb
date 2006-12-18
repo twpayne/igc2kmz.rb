@@ -3,11 +3,13 @@ require "open-uri"
 
 class Photo
 
+  attr_reader :time
+
   def initialize(uri)
     @uri = uri.is_a?(URI) ? uri : URI.parse(uri)
     if @uri.scheme
       @uri.open do |io|
-        raise unless io.content_type == "image/jpeg"
+        raise "unsupported content type #{io.content_type}" unless io.content_type.downcase == "image/jpeg"
         @jpeg = EXIFR::JPEG.new(io)
       end
     else
@@ -15,14 +17,9 @@ class Photo
         @jpeg = EXIFR::JPEG.new(io)
       end
     end
-  end
-
-  def time(hints)
-    if @jpeg.exif.date_time_original
-      Time.utc(*@jpeg.exif.date_time_original.to_a[0, 6].reverse) + hints.photo_tz_offset - hints.tz_offset
-    else
-      Time.at(0)
-    end
+    raise "no EXIF information" unless @jpeg.exif
+    raise "no DateTimeOriginal tag" unless @jpeg.exif.date_time_original
+    @time = Time.utc(*@jpeg.exif.date_time_original.to_a[0, 6].reverse)
   end
 
 end

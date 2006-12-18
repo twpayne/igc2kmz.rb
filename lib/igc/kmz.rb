@@ -386,7 +386,7 @@ class IGC
     label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
     style = KML::Style.new(icon_style, label_style)
     kmz = KMZ.new(KML::Folder.new(:name => "Photos", :open => 0), :roots => [style])
-    hints.photos.sort_by(&:time.to_proc(hints)).each do |photo|
+    hints.photos.sort_by(&:time).each do |photo|
       kmz.merge(photo.to_kmz(hints, :styleUrl => style.url))
     end
     kmz
