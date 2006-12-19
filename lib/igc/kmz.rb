@@ -118,9 +118,13 @@ end
 
 class Scale
 
-  def initialize(range, format, multiplier = 1, gradient = Gradient::Default)
+  attr_reader :title
+
+  def initialize(title, range, format, units, multiplier = 1, gradient = Gradient::Default)
+    @title = title
     @range = range
     @format = format
+    @units = units
     @multiplier = multiplier
     @gradient = gradient
   end
@@ -147,31 +151,128 @@ class Scale
     (steps * (value - @range.first) / (@range.last - @range.first)).round.constrain(0, steps - 1)
   end
 
+  def make_step(n)
+    width = @multiplier * (@range.last - @range.first)
+    steps = [0.25, 0.5, 1.0]
+    i = steps.length * (Math.log10(width).to_i - 1)
+    step = steps[i % steps.length] * 10 ** (i / steps.length)
+    while width / step > n
+      i += 1
+      step = steps[i % steps.length] * 10 ** (i / steps.length)
+    end
+    step0 = steps[(i - 1) % steps.length] * 10 ** ((i - 1) / steps.length)
+    (n * step / width < width / (n * step0) ? step : step0) / @multiplier
+  end
+
+  def make_time_step(width, n)
+    steps = [1, 15, 30, 60, 5 * 60, 15 * 60, 30 * 60, 60 * 60, 3 * 60 * 60, 6 * 60 * 60, 12 * 60 * 60]
+    i = 0
+    i += 1 while i < steps.length and width / steps[i] > n
+    return steps[0] if i.zero?
+    return steps[-1] if i == steps.length
+    n * steps[i] / width < width / (n * steps[i - 1]) ? steps[i] : steps[i - 1]
+  end
+
   def to_image
     border = 8
     height = 256
     width = 64
-    multiplied_range = Range.new(@multiplier * @range.first, @multiplier * @range.last, @range.exclude_end?)
     Magick::RVG.new(width + 2 * border, height + 2 * border) do |canvas|
-      canvas.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold")
-      i = 3 * (Math.log10(multiplied_range.last - multiplied_range.first).to_i - 2)
-      step = [1.0, 2.5, 5.0][i % 3] * (10 ** (i / 3))
-      while (multiplied_range.last - multiplied_range.first) / step > 15
-        i += 1
-        step = [1.0, 2.5, 5.0][i % 3] * (10 ** (i / 3))
-      end
-      value = step * (multiplied_range.first / step).ceil
-      while value <= multiplied_range.last
-        y = (height * (1.0 - (value - multiplied_range.first) / (multiplied_range.last - multiplied_range.first))).round + border
-        color = color_of(value / @multiplier)
+      canvas.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none")
+      step = make_step(8)
+      value = step * (@range.first / step).ceil
+      while value <= @range.last
+        y = (height * (1.0 - (value - @range.first) / (@range.last - @range.first))).round + border
+        color = color_of(value)
         canvas.line(border, y, 8 + border, y).styles(:stroke => color)
-        canvas.text(12 + border, y, @format % value).d(0, 4).styles(:fill => color)
+        canvas.text(12 + border, y, "#{@format}%s" % [@multiplier * value, @units]).d(0, 4).styles(:fill => color)
         value += step
       end
       (0...height).each do |y|
         value = @range.last - (y + 0.5) * (@range.last - @range.first) / height
         color = color_of(value)
         canvas.line(border, border + y, border + 4, border + y).styles(:stroke => color)
+      end
+    end.draw.outline do
+      self.background_color = "transparent"
+    end
+  end
+
+  def to_graph_image(hints, times, values)
+    border = 8
+    top_border = 16
+    right_border = 8
+    bottom_border = 16
+    left_border = 32
+    height = 200
+    width = 600
+    tstep = make_time_step(times[-1] - times[0], 8)
+    vstep = make_step(4)
+    v0 = vstep * (@range.first / vstep).floor
+    v1 = vstep * (@range.last / vstep).ceil
+    Magick::RVG.new(left_border + width + right_border, top_border + height + bottom_border) do |canvas|
+      canvas.g.translate(left_border, top_border + height) do |graph|
+        graph.styles(:stroke => "black")
+        graph.rect(width, height, 0, -height).styles(:fill => "white", :stroke => "none")
+        graph.g.styles(:stroke => "#eee") do |minor_grid|
+          t = tstep * (times[0].to_f / tstep).ceil + tstep / 2.0
+          while t <= times[-1]
+            x = (width.to_f * (t - times[0]) / (times[-1] - times[0])).round
+            minor_grid.line(x, 0, x, -height)
+            t += tstep
+          end
+          v = vstep * (v0 / vstep).ceil + vstep / 2.0
+          while v <= v1
+            y = (-height.to_f * (v - v0) / (v1 - v0)).round
+            minor_grid.line(0, y, width, y)
+            v += vstep
+          end
+        end
+        graph.g.styles(:stroke => "#ddd") do |major_grid|
+          t = tstep * (times[0].to_f / tstep).ceil
+          while t <= times[-1]
+            x = (width.to_f * (t - times[0]) / (times[-1] - times[0])).round
+            major_grid.line(x, 0, x, -height)
+            t += tstep
+          end
+          v = vstep * (v0 / vstep).ceil
+          while v <= v1
+            y = (-height.to_f * (v - v0) / (v1 - v0)).round
+            major_grid.line(0, y, width, y)
+            v += vstep
+          end
+        end
+        graph.g.styles(:fill => "none") do |outline|
+          outline.line(0, 0, 0, -height)
+          outline.line(0, 0, width, 0)
+        end
+        graph.text(0, -height - 4, "#{@title.capitalize} (#{@units})").styles(:fill => "white", :font_family => "Verdana", :font_size => 11, :font_weight => "bold", :stroke => "none", :text_anchor => "start")
+        graph.g.styles(:fill => "white", :font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none") do |axes|
+          t = (tstep * (times[0].to_f / tstep).ceil).to_i
+          format = tstep < 60 ? "%H:%M:%S" : "%H:%M"
+          while t <= times[-1]
+            x = (width.to_f * (t - times[0]) / (times[-1] - times[0])).round
+            axes.line(x, 0, x, -2).styles(:stroke => "black")
+            axes.text(x, 4, (Time.at(t).utc + hints.tz_offset).strftime(format)).styles(:text_anchor => "middle").d(0, 9)
+            t += tstep
+          end
+          v = vstep * (v0 / vstep).ceil
+          while v <= v1
+            y = (-height.to_f * (v - v0) / (v1 - v0)).round
+            axes.line(0, y, 2, y).styles(:stroke => "black")
+            axes.text(-4, y, @format % (@multiplier * v)).styles(:text_anchor => "end").d(0, 4)
+            v += vstep
+          end
+        end
+        graph.g.styles(:fill => "none") do |line|
+          xs = times.collect do |x|
+            width.to_f * (x - times[0]) / (times[-1] - times[0])
+          end
+          ys = values.collect do |y|
+            -height.to_f * (y - v0) / (v1 - v0)
+          end
+          line.polyline(xs, ys)
+        end
       end
     end.draw.outline do
       self.background_color = "transparent"
@@ -288,7 +389,7 @@ class IGC
     hints = hints ? hints.clone : self.class.default_hints
     unless hints.tz_offset
       if @header[:timezone_offset]
-        hints.tz_offset = 60 * @header[:timezone_offset].to_i
+        hints.tz_offset = 3600 * @header[:timezone_offset].to_i
       else
         hints.tz_offset = 0
       end
@@ -301,6 +402,10 @@ class IGC
     end
     hints.igc = self
     hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity) unless hints.task
+    hints.scales = OpenStruct.new
+    hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, "%d", "m")
+    hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, "%.1f", "m/s")
+    hints.scales.speed = Scale.new("speed", hints.bounds.speed, "%d", "km/h", 3.6)
     rows = []
     rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
     rows << ["Date", (@fixes[0].time + hints.tz_offset).strftime("%A, %d %B %Y")]
@@ -330,6 +435,7 @@ class IGC
     kmz.merge(altitude_marks_folder(hints))
     kmz.merge(thermals_and_glides_folder(hints))
     kmz.merge(time_marks_folder(hints))
+    kmz.merge(graphs_folder(hints))
   end
 
   def make_monochromatic_track_log(color, width, altitude_mode, folder_options = {})
@@ -340,7 +446,8 @@ class IGC
   end
 
   def make_colored_track_log(hints, values, scale, folder_options = {})
-    folder = KML::Folder.hide_children(folder_options)
+    name = KML::Name.new("Coloured by #{scale.title}")
+    folder = KML::Folder.hide_children(name, folder_options)
     styles = scale.pixels.collect do |pixel|
       KML::Style.new(KML::LineStyle.new(KML::Color.pixel(pixel), :width => hints.width))
     end
@@ -356,8 +463,8 @@ class IGC
     image.format = "png"
     href = "images/%x.%s" % [image.object_id.abs, image.format.downcase]
     icon = KML::Icon.new(:href => href)
-    overlay_xy = KML::OverlayXY.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
-    screen_xy = KML::ScreenXY.new(:x => 0, :y => 16, :xunits => :fraction, :yunits => :pixels)
+    overlay_xy = KML::OverlayXY.new(:x => 0, :y => 1, :xunits => :fraction, :yunits => :fraction)
+    screen_xy = KML::ScreenXY.new(:x => 0, :y => 1, :xunits => :fraction, :yunits => :fraction)
     size = KML::Size.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
     screen_overlay = KML::ScreenOverlay.new(icon, overlay_xy, screen_xy, size)
     folder.add(screen_overlay)
@@ -365,12 +472,11 @@ class IGC
   end
 
   def track_log_folder(hints)
-    kmz = KMZ.new(KML::Folder.radio(:name => "Track log", :open => 1))
+    kmz = KMZ.new(KML::Folder.radio(:name => "Track log"))
     kmz.merge(hints.stock.invisible_none_folder)
-    kmz.merge(make_colored_track_log(hints, @fixes.collect(&:alt), Scale.new(hints.bounds.alt, "%d m"), :name => "Colored by altitude"))
-    kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), ZeroCenteredScale.new(hints.bounds.climb, "%+.1f m/s"), :name => "Colored by climb", :visibility => 0))
-    kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), Scale.new(hints.bounds.speed, "%d km/h", 3.6), :name => "Colored by speed", :visibility => 0))
-    #kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb_or_glide), BilinearScale.new(hints.bounds.speed, "+.1f m/s", 1, "%d:1", 1), :name => "Colored by climb and glide", :visibility => 0))
+    kmz.merge(make_colored_track_log(hints, @fixes.collect(&:alt), hints.scales.altitude))
+    kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
+    kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
     kmz.merge(make_monochromatic_track_log(hints.color, hints.width, :absolute, :name => "Solid color", :visibility => 0))
   end
 
@@ -393,8 +499,7 @@ class IGC
   end
 
   def altitude_marks_folder(hints)
-    scale = Scale.new(hints.bounds.alt, "%d m")
-    styles = scale.pixels.collect do |pixel|
+    styles = hints.scales.altitude.pixels.collect do |pixel|
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(KML::Color.pixel(pixel))
       KML::Style.new(icon_style, label_style)
@@ -404,7 +509,7 @@ class IGC
       folders[type] = KML::Folder.hide_children(:name => type.to_s.sub(/\A.*::(Max|Min)imum/) { "#{$1}ima" }, :visibility => 0)
     end
     @alt_extremes.each do |extreme|
-      folders[extreme.class].add(extreme.fix.to_kml(hints, :alt, {:altitudeMode => :absolute}, :styleUrl => styles[scale.discretize(extreme.fix.alt)].url))
+      folders[extreme.class].add(extreme.fix.to_kml(hints, :alt, {:altitudeMode => :absolute}, :styleUrl => styles[hints.scales.altitude.discretize(extreme.fix.alt)].url))
     end
     folder = KML::Folder.new(folders[Extreme::Maximum], folders[Extreme::Minimum], :name => "Altitude marks", :open => 0, :visibility => 0)
     KMZ.new(folder, :roots => styles)
@@ -541,6 +646,31 @@ class IGC
     kmz = KMZ.new(KML::Folder.new(:name => "Competition", :open => 0))
     kmz.merge(hints.task.to_kmz(hints, :open => 0))
     kmz.merge(task_marks_folder(hints))
+  end
+
+  def make_graph(hints, values, scale, folder_options = {})
+    name = KML::Name.new(scale.title.capitalize)
+    folder = KML::Folder.hide_children(name, folder_options)
+    image = scale.to_graph_image(hints, @times, values)
+    image.set_channel_depth(Magick::AllChannels, 8)
+    image.format = "png"
+    href = "images/%x.%s" % [image.object_id.abs, image.format.downcase]
+    image.write("#{scale.title}.png")
+    icon = KML::Icon.new(:href => href)
+    overlay_xy = KML::OverlayXY.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
+    screen_xy = KML::ScreenXY.new(:x => 0, :y => 16, :xunits => :fraction, :yunits => :pixels)
+    size = KML::Size.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
+    screen_overlay = KML::ScreenOverlay.new(icon, overlay_xy, screen_xy, size)
+    folder.add(screen_overlay)
+    KMZ.new(folder, :files => {href => image.to_blob})
+  end
+
+  def graphs_folder(hints)
+    kmz = KMZ.new(KML::Folder.radio(:name => "Graphs"))
+    kmz.merge(hints.stock.visible_none_folder)
+    kmz.merge(make_graph(hints, @fixes.collect(&:alt), hints.scales.altitude, :visibility => 0))
+    kmz.merge(make_graph(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
+    kmz.merge(make_graph(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
   end
 
 end
