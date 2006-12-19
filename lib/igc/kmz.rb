@@ -491,7 +491,7 @@ class IGC
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 46), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
     style = KML::Style.new(icon_style, label_style)
-    kmz = KMZ.new(KML::Folder.new(:name => "Photos", :open => 0), :roots => [style])
+    kmz = KMZ.new(KML::Folder.new(:name => "Photos"), :roots => [style])
     hints.photos.sort_by(&:time).each do |photo|
       kmz.merge(photo.to_kmz(hints, :styleUrl => style.url))
     end
@@ -511,12 +511,12 @@ class IGC
     @alt_extremes.each do |extreme|
       folders[extreme.class].add(extreme.fix.to_kml(hints, :alt, {:altitudeMode => :absolute}, :styleUrl => styles[hints.scales.altitude.discretize(extreme.fix.alt)].url))
     end
-    folder = KML::Folder.new(folders[Extreme::Maximum], folders[Extreme::Minimum], :name => "Altitude marks", :open => 0, :visibility => 0)
+    folder = KML::Folder.new(folders[Extreme::Maximum], folders[Extreme::Minimum], :name => "Altitude marks", :visibility => 0)
     KMZ.new(folder, :roots => styles)
   end
 
   def thermals_and_glides_folder(hints)
-    folder = KML::Folder.new(:name => "Thermals and glides", :open => 0, :visibility => 0)
+    folder = KML::Folder.new(:name => "Thermals and glides", :visibility => 0)
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(KML::Color.new("ff0033ff"), :scale => LABEL_SCALES[2])
     line_style = KML::LineStyle.new(KML::Color.new("880033ff"), :width => 4)
@@ -597,7 +597,7 @@ class IGC
   end
 
   def time_marks_folder(hints)
-    folder = KML::Folder.radio(:name => "Time marks", :open => 0)
+    folder = KML::Folder.radio(:name => "Time marks")
     styles = []
     period_struct = Struct.new(:period, :children)
     periods = [[3600, 27, 0], [1800, 27, 0], [900, 26, 1], [300, 25, 2], [60, 24, 3]].collect do |period, icon, label_scale_index|
@@ -620,7 +620,7 @@ class IGC
 
   def task_marks_folder(hints)
     task = hints.task
-    folder = KML::Folder.new(:name => "Task marks", :open => 0, :visibility => 0)
+    folder = KML::Folder.new(:name => "Task marks", :visibility => 0)
     index = 0
     index += 1 while task.course[index].is_a?(Task::TakeOff)
     turnpoint_number = 0
@@ -643,8 +643,8 @@ class IGC
   end
 
   def competition_folder(hints)
-    kmz = KMZ.new(KML::Folder.new(:name => "Competition", :open => 0))
-    kmz.merge(hints.task.to_kmz(hints, :open => 0))
+    kmz = KMZ.new(KML::Folder.new(:name => "Competition"))
+    kmz.merge(hints.task.to_kmz(hints))
     kmz.merge(task_marks_folder(hints))
   end
 

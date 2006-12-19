@@ -61,11 +61,11 @@ end
 class Optima
 
   def to_kmz(hints)
-    kmz = KMZ.new(KML::Folder.radio(KML::Name.new("Cross country"), :open => 0))
+    kmz = KMZ.new(KML::Folder.radio(KML::Name.new("Cross country")))
     kmz.merge(hints.stock.invisible_none_folder)
     best_optimum = @optima.sort_by(&:score)[-1]
     @optima.each do |optimum|
-      kmz.merge(optimum.to_kmz(hints, :open => 0, :visibility => optimum == best_optimum ? 1 : 0))
+      kmz.merge(optimum.to_kmz(hints, :visibility => optimum == best_optimum ? nil : 0))
     end
     kmz
   end
