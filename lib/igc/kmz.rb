@@ -532,10 +532,10 @@ class IGC
       point = KML::Point.new(:coordinates => extreme0.fix.halfway_to(extreme1.fix), :altitudeMode => :absolute)
       line_string = KML::LineString.new(:coordinates => [extreme0.fix, extreme1.fix], :altitudeMode => :absolute)
       multi_geometry = KML::MultiGeometry.new(point, line_string)
-      if extreme0.is_a?(Extreme::Minimum) and extreme1.is_a?(Extreme::Maximum)
+      if extreme0.is_a?(Extreme::Minimum)
         name = "+%dm at %.1fm/s" % [dz, dz.to_f / dt]
         style = thermal_style
-      elsif extreme0.is_a?(Extreme::Maximum) and extreme1.is_a?(Extreme::Minimum)
+      else
         name = "%.1fkm at %.1f:1" % [ds / 1000.0, -ds / dz]
         style = glide_style
       end
@@ -546,12 +546,11 @@ class IGC
         max_speed = @averages[i].speed if @averages[i].speed > max_speed
       end
       statistics = []
-      if extreme0.is_a?(Extreme::Minimum) and extreme1.is_a?(Extreme::Maximum)
+      if extreme0.is_a?(Extreme::Minimum)
         statistics << ["Altitude gain", "%dm" % dz]
         statistics << ["Average climb", "%+.1fm/s" % (dz.to_f / dt)]
         statistics << ["Maximum climb", "%+.1fm/s" % max_climb]
-      end
-      if extreme0.is_a?(Extreme::Maximum) and extreme1.is_a?(Extreme::Minimum)
+      else
         statistics << ["Distance", "%.1fkm" % (ds / 1000.0)]
         statistics << ["Altitude loss", "%dm" % -dz]
         statistics << ["Average glide ratio", "%.1f:1" % (-ds / dz)]
