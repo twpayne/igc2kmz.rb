@@ -654,7 +654,6 @@ class IGC
     image.set_channel_depth(Magick::AllChannels, 8)
     image.format = "png"
     href = "images/%x.%s" % [image.object_id.abs, image.format.downcase]
-    image.write("#{scale.title}.png")
     icon = KML::Icon.new(:href => href)
     overlay_xy = KML::OverlayXY.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
     screen_xy = KML::ScreenXY.new(:x => 0, :y => 16, :xunits => :fraction, :yunits => :pixels)
