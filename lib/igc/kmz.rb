@@ -429,7 +429,7 @@ class IGC
     kmz.merge(hints.stock.kmz)
     kmz.merge(track_log_folder(hints))
     kmz.merge(shadow_folder(hints))
-    kmz.merge(photos_folder(hints)) if hints.photos and !hints.photos.empty?
+    kmz.merge(photos_folder(hints)) if hints.photos
     kmz.merge(optima_folder(hints)) if hints.optima
     kmz.merge(competition_folder(hints)) if hints.task
     kmz.merge(altitude_marks_folder(hints))
@@ -488,11 +488,15 @@ class IGC
   end
 
   def photos_folder(hints)
+    photos = hints.photos.find_all do |photo|
+      (@times[0]..@times[-1]).include?(photo.time.to_i + hints.photo_tz_offset - hints.tz_offset)
+    end
+    return KMZ.new if photos.empty?
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 46), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
     style = KML::Style.new(icon_style, label_style)
     kmz = KMZ.new(KML::Folder.new(:name => "Photos"), :roots => [style])
-    hints.photos.sort_by(&:time).each do |photo|
+    photos.sort_by(&:time).each do |photo|
       kmz.merge(photo.to_kmz(hints, :styleUrl => style.url))
     end
     kmz
