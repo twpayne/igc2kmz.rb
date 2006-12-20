@@ -540,10 +540,16 @@ class IGC
         style = glide_style
       end
       min_climb = max_climb = max_speed = 0.0
+      sum_alt_gain = sum_alt_loss = 0
       (@times.find_first_ge(extreme0.fix.time.to_i)...@times.find_first_ge(extreme1.fix.time.to_i)).each do |i|
         min_climb = @averages[i].climb if @averages[i].climb < min_climb
         max_climb = @averages[i].climb if @averages[i].climb > max_climb
         max_speed = @averages[i].speed if @averages[i].speed > max_speed
+        change = @fixes[i + 1].alt - @fixes[i].alt
+        case change <=> 0
+        when  1 then sum_alt_gain += change
+        when -1 then sum_alt_loss -= change
+        end
       end
       statistics = []
       if extreme0.is_a?(Extreme::Minimum)
@@ -564,6 +570,8 @@ class IGC
       statistics << ["Start time", (extreme0.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
       statistics << ["Finish time", (extreme1.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
       statistics << ["Duration", (extreme1.fix.time - extreme0.fix.time).to_duration]
+      statistics << ["Accumulated height gain", "%dm" % sum_alt_gain]
+      statistics << ["Accumulated height loss", "%dm" % sum_alt_loss]
       description = KML::Description.new(KML::CData.new("<table>", statistics.collect do |th, td|
         "<tr><th>#{th}</th><td>#{td}</td></tr>"
       end.join, "</table>"))
