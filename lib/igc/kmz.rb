@@ -411,12 +411,45 @@ class IGC
     rows = []
     rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
     rows << ["Date", (@fixes[0].time + hints.tz_offset).strftime("%A, %d %B %Y")]
+    rows << ["Site", @header[:site]] if @header[:site]
+    rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     if hints.task
       rows << ["Competition", hints.task.competition_name] if hints.task.competition_name
       rows << ["Task", hints.task.number] if hints.task.number
     end
-    rows << ["Site", @header[:site]] if @header[:site]
-    rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
+    if hints.optima
+      optimum = hints.optima.optima.sort_by(&:score)[-1]
+      rows << ["Cross country league", Optima::LEAGUES[hints.optima.league]]
+      rows << ["Cross country type", optimum.flight_type]
+      rows << ["Cross country distance", "%.1fkm (%.1f points)" % [optimum.distance / 1000, optimum.score]]
+    end
+    rows << ["Take off time", (@fixes[0].time + hints.tz_offset).strftime("%H:%M:%S")]
+    rows << ["Landing time", (@fixes[-1].time + hints.tz_offset).strftime("%H:%M:%S")]
+    rows << ["Duration", (@fixes[-1].time - @fixes[0].time).to_duration]
+    rows << ["Take off altitude", "%dm" % @fixes[0].alt]
+    rows << ["Maximum altitude", "%dm" % @bounds.alt.last]
+    rows << ["Maximum altitude above take off", "%dm" % (@bounds.alt.last - @fixes[0].alt)]
+    rows << ["Minimum altitude", "%dm" % @bounds.alt.first]
+    max_alt_gain = 0
+    min_alt = max_alt = @fixes[0].alt
+    @fixes.each do |fix|
+      if fix.alt < min_alt
+        min_alt = fix.alt
+      elsif fix.alt > max_alt
+        max_alt = fix.alt
+        alt_gain = max_alt - min_alt
+        max_alt_gain = alt_gain if alt_gain > max_alt_gain
+      end
+    end
+    rows << ["Maximum altitude gain", "%dm" % max_alt_gain]
+    sum_alt_gain = 0
+    @fixes.each_cons(2) do |fix0, fix1|
+      change = fix1.alt - fix0.alt
+      sum_alt_gain += change if change > 0
+    end
+    rows << ["Accumulated altitude gain", "%dm" % sum_alt_gain]
+    rows << ["Maximum climb", "%+.1fm/s" % @bounds.climb.last]
+    rows << ["Maximum sink", "%+.1fm/s" % @bounds.climb.first]
     rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
     description = KML::Description.new(KML::CData.new(rows.to_html_table))
     fields = []
@@ -574,8 +607,8 @@ class IGC
       rows << ["Start time", (extreme0.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
       rows << ["Finish time", (extreme1.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
       rows << ["Duration", (extreme1.fix.time - extreme0.fix.time).to_duration]
-      rows << ["Accumulated height gain", "%dm" % sum_alt_gain]
-      rows << ["Accumulated height loss", "%dm" % sum_alt_loss]
+      rows << ["Accumulated altitude gain", "%dm" % sum_alt_gain]
+      rows << ["Accumulated altitude loss", "%dm" % sum_alt_loss]
       description = KML::Description.new(KML::CData.new(rows.to_html_table))
       placemark = KML::Placemark.new(multi_geometry, description, KML::Snippet.new, :styleUrl => style.url, :name => name, :visibility => 0)
       folder.add(placemark)
