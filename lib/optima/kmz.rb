@@ -1,3 +1,4 @@
+require "html"
 require "kmz"
 require "optima"
 
@@ -32,9 +33,7 @@ class Optimum
     if @circuit
       rows << ["#{@names[0]} - #{@names[-1]}", "%.1fkm" % (@fixes[0].distance_to(@fixes[-1]) / 1000.0)]
     end
-    description = KML::Description.new(KML::CData.new("<table>", rows.collect do |th, td|
-      "<tr><th>#{th}</th><td>#{td}</td></tr>"
-    end.join, "</table>"))
+    description = KML::Description.new(KML::CData.new(rows.to_html_table))
     folder = KML::Folder.hide_children(KML::Name.new(name), description, KML::Snippet.new, folder_options)
     if @circuit
       coords = @fixes[1...-1]

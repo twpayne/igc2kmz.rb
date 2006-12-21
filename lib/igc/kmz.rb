@@ -1,4 +1,5 @@
 require "RMagick"
+require "html"
 require "igc"
 require "igc/analysis"
 require "kmz"
@@ -312,9 +313,7 @@ class IGC
       statistics = []
       statistics << ["Altitude", a]
       statistics << ["Time", t]
-      description = KML::Description.new(KML::CData.new("<table>", statistics.collect do |th, td|
-        "<tr><th>#{th}</th><td>#{td}</td></tr>"
-      end.join, "</table>"))
+      description = KML::Description.new(KML::CData.new(statistics.to_html_table))
       KML::Placemark.new(point, name, description, KML::Snippet.new, *children)
     end
 
@@ -419,9 +418,7 @@ class IGC
     rows << ["Site", @header[:site]] if @header[:site]
     rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
-    description = KML::Description.new(KML::CData.new("<table>", rows.collect do |th, td|
-      "<tr><th>#{th}</th><td>#{td}</td></tr>"
-    end.join, "</table>"))
+    description = KML::Description.new(KML::CData.new(rows.to_html_table))
     fields = []
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
     fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
@@ -579,9 +576,7 @@ class IGC
       statistics << ["Duration", (extreme1.fix.time - extreme0.fix.time).to_duration]
       statistics << ["Accumulated height gain", "%dm" % sum_alt_gain]
       statistics << ["Accumulated height loss", "%dm" % sum_alt_loss]
-      description = KML::Description.new(KML::CData.new("<table>", statistics.collect do |th, td|
-        "<tr><th>#{th}</th><td>#{td}</td></tr>"
-      end.join, "</table>"))
+      description = KML::Description.new(KML::CData.new(statistics.to_html_table))
       placemark = KML::Placemark.new(multi_geometry, description, KML::Snippet.new, :styleUrl => style.url, :name => name, :visibility => 0)
       folder.add(placemark)
     end
