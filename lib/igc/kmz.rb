@@ -403,6 +403,8 @@ class IGC
       rows << ["Cross country league", Optima::LEAGUES[hints.optima.league]]
       rows << ["Cross country type", optimum.flight_type]
       rows << ["Cross country distance", "%.1fkm (%.1f points)" % [optimum.distance / 1000, optimum.score]]
+      rows << ["Time on task", (optimum.fixes[-1].time - optimum.fixes[0].time).to_duration]
+      rows << ["Average speed", "%.1fkm/h" % (3.6 * optimum.distance / (optimum.fixes[-1].time - optimum.fixes[0].time))]
     end
     rows << ["Take off time", (@fixes[0].time + hints.tz_offset).strftime("%H:%M:%S")]
     rows << ["Landing time", (@fixes[-1].time + hints.tz_offset).strftime("%H:%M:%S")]
