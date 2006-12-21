@@ -387,27 +387,7 @@ class IGC
 
   end
 
-  def to_kmz(hints = nil)
-    hints = hints ? hints.clone : self.class.default_hints
-    unless hints.tz_offset
-      if @header[:timezone_offset]
-        hints.tz_offset = 3600 * @header[:timezone_offset].to_i
-      else
-        hints.tz_offset = 0
-      end
-    end
-    analyse
-    if hints.bounds
-      hints.bounds.merge(@bounds)
-    else
-      hints.bounds = @bounds
-    end
-    hints.igc = self
-    hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity) unless hints.task
-    hints.scales = OpenStruct.new
-    hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, "%d", "m")
-    hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, "%.1f", "m/s")
-    hints.scales.speed = Scale.new("speed", hints.bounds.speed, "%d", "km/h", 3.6)
+  def make_description(hints)
     rows = []
     rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
     rows << ["Date", (@fixes[0].time + hints.tz_offset).strftime("%A, %d %B %Y")]
@@ -452,14 +432,37 @@ class IGC
     rows << ["Maximum climb", "%+.1fm/s" % @bounds.climb.last]
     rows << ["Maximum sink", "%+.1fm/s" % @bounds.climb.first]
     rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
-    description = KML::Description.new(KML::CData.new(rows.to_html_table))
+    KML::Description.new(KML::CData.new(rows.to_html_table))
+  end
+
+  def to_kmz(hints = nil)
+    hints = hints ? hints.clone : self.class.default_hints
+    unless hints.tz_offset
+      if @header[:timezone_offset]
+        hints.tz_offset = 3600 * @header[:timezone_offset].to_i
+      else
+        hints.tz_offset = 0
+      end
+    end
+    analyse
+    if hints.bounds
+      hints.bounds.merge(@bounds)
+    else
+      hints.bounds = @bounds
+    end
+    hints.igc = self
+    hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity) unless hints.task
+    hints.scales = OpenStruct.new
+    hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, "%d", "m")
+    hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, "%.1f", "m/s")
+    hints.scales.speed = Scale.new("speed", hints.bounds.speed, "%d", "km/h", 3.6)
     fields = []
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
     fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
     fields << @header[:site] if @header[:site]
     fields << (@fixes[0].time + hints.tz_offset).strftime("%d %b %Y")
     snippet = KML::Snippet.new(fields.join(", "), :maxlines => 1)
-    kmz = KMZ.new(KML::Folder.new(description, snippet, :name => @filename, :open => 1))
+    kmz = KMZ.new(KML::Folder.new(make_description(hints), snippet, :name => @filename, :open => 1))
     kmz.merge(hints.stock.kmz)
     kmz.merge(track_log_folder(hints))
     kmz.merge(shadow_folder(hints))
