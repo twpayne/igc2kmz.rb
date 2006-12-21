@@ -19,6 +19,10 @@ class IGC
       @extensions = extensions
     end
 
+    def method_missing(id, *args)
+      extensions[id] or super(id, *args)
+    end
+
   end
 
   class Waypoint < Coord
@@ -95,8 +99,8 @@ class IGC
         @header[key] = value unless /\A(|none|not\s+set)\z/i.match(value)
       when /\AI(\d\d)(\d{4}[0-9A-Z]{3})*\s*\z/i
         unless $1.to_i.zero?
-          $2.scan(/(\d\d)(\d\d)([0-9A-Z]{3})/) do |md|
-            @extensions << Extension.new(($1.to_i - 1)...$2.to_i, $3.intern)
+          $2.scan(/(\d\d)(\d\d)([0-9A-Z]{3})/i) do |md|
+            @extensions << Extension.new(($1.to_i - 1)...$2.to_i, $3.downcase.intern)
           end
         end
       when /\AC(\d\d)(\d\d)(\d{3})([NS])(\d{3})(\d\d)(\d{3})([EW])(.*)\z/i
@@ -114,8 +118,9 @@ class IGC
         sec0 = sec1
         lat = Radians.new_from_dmsh($4.to_i, 0.001 * $5.to_i, 0, $6)
         lon = Radians.new_from_dmsh($7.to_i, 0.001 * $8.to_i, 0, $9)
-        extensions = @extensions.collect do |extension|
-          line[extension.bytes].to_i
+        extensions = {}
+        @extensions.each do |extension|
+          extensions[extension.code] = line[extension.bytes].to_i
         end
         @fixes << Fix.new(time, lat, lon, $11.to_i, $10.intern, $12.to_i, extensions)
       when /\AL/i
