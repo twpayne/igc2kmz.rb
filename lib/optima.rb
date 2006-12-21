@@ -40,6 +40,10 @@ end
 
 class Optima
 
+  attr_reader :optima
+  attr_reader :league
+  attr_reader :complexity
+
   def initialize(optima, league, complexity)
     @optima = optima
     @league = league

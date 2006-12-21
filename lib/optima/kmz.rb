@@ -8,6 +8,8 @@ class Optimum
     name = (@multiplier.zero? ? "%s (%.1fkm)" : "%s (%.1fkm, %.1f points)") % [@flight_type, distance / 1000.0, score]
     rows = []
     total = distance
+    rows << ["League", Optima::LEAGUES[hints.optima.league]]
+    rows << ["Type", @flight_type]
     if @circuit
       if @fixes.length == 4
         rows << ["#{@names[1]} - #{@names[2]}", "%.1fkm" % (@fixes[1].distance_to(@fixes[2]) / 1000.0)]
@@ -60,7 +62,7 @@ end
 class Optima
 
   def to_kmz(hints)
-    kmz = KMZ.new(KML::Folder.radio(KML::Name.new("Cross country")))
+    kmz = KMZ.new(KML::Folder.radio(:name => "Cross country"))
     kmz.merge(hints.stock.invisible_none_folder)
     best_optimum = @optima.sort_by(&:score)[-1]
     @optima.each do |optimum|

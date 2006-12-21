@@ -749,7 +749,11 @@ Init_coptima(void)
 	sym_open = ID2SYM(rb_intern("open"));
 	sym_frcfd = ID2SYM(rb_intern("frcfd"));
 	sym_ukxcl = ID2SYM(rb_intern("ukxcl"));
-	rb_define_const(rb_cOptima, "LEAGUES", rb_ary_new3(3, sym_open, sym_ukxcl, sym_frcfd));
+    VALUE rb_LEAGUES = rb_hash_new();
+    rb_hash_aset(rb_LEAGUES, sym_open, rb_str_new2("Open distance"));
+    rb_hash_aset(rb_LEAGUES, sym_ukxcl, rb_str_new2("XC league (UK)"));
+    rb_hash_aset(rb_LEAGUES, sym_frcfd, rb_str_new2("Coupe f\xc3\xa9""d\xc3\xa9rale de distance (France)"));
+	rb_define_const(rb_cOptima, "LEAGUES", rb_LEAGUES);
 	id_fixes = rb_intern("fixes");
 	id_lat = rb_intern("lat");
 	id_lon = rb_intern("lon");
