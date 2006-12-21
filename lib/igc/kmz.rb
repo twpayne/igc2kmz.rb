@@ -555,28 +555,28 @@ class IGC
         when -1 then sum_alt_loss -= change
         end
       end
-      statistics = []
+      rows = []
       if extreme0.is_a?(Extreme::Minimum)
-        statistics << ["Altitude gain", "%dm" % dz]
-        statistics << ["Average climb", "%+.1fm/s" % (dz.to_f / dt)]
-        statistics << ["Maximum climb", "%+.1fm/s" % max_climb]
+        rows << ["Altitude gain", "%dm" % dz]
+        rows << ["Average climb", "%+.1fm/s" % (dz.to_f / dt)]
+        rows << ["Maximum climb", "%+.1fm/s" % max_climb]
       else
-        statistics << ["Distance", "%.1fkm" % (ds / 1000.0)]
-        statistics << ["Altitude loss", "%dm" % -dz]
-        statistics << ["Average glide ratio", "%.1f:1" % (-ds / dz)]
-        statistics << ["Average speed", "%dkm/h" % (3.6 * ds / dt)]
-        statistics << ["Maximum speed", "%dkm/h" % (3.6 * max_speed)]
-        statistics << ["Average sink", "%+.1fm/s" % (dz.to_f / dt)]
-        statistics << ["Maximum sink", "%+.1fm/s" % min_climb]
+        rows << ["Distance", "%.1fkm" % (ds / 1000.0)]
+        rows << ["Altitude loss", "%dm" % -dz]
+        rows << ["Average glide ratio", "%.1f:1" % (-ds / dz)]
+        rows << ["Average speed", "%dkm/h" % (3.6 * ds / dt)]
+        rows << ["Maximum speed", "%dkm/h" % (3.6 * max_speed)]
+        rows << ["Average sink", "%+.1fm/s" % (dz.to_f / dt)]
+        rows << ["Maximum sink", "%+.1fm/s" % min_climb]
       end
-      statistics << ["Start altitude", "%dm" % extreme0.fix.alt]
-      statistics << ["Finish altitude", "%dm" % extreme1.fix.alt]
-      statistics << ["Start time", (extreme0.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
-      statistics << ["Finish time", (extreme1.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
-      statistics << ["Duration", (extreme1.fix.time - extreme0.fix.time).to_duration]
-      statistics << ["Accumulated height gain", "%dm" % sum_alt_gain]
-      statistics << ["Accumulated height loss", "%dm" % sum_alt_loss]
-      description = KML::Description.new(KML::CData.new(statistics.to_html_table))
+      rows << ["Start altitude", "%dm" % extreme0.fix.alt]
+      rows << ["Finish altitude", "%dm" % extreme1.fix.alt]
+      rows << ["Start time", (extreme0.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
+      rows << ["Finish time", (extreme1.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
+      rows << ["Duration", (extreme1.fix.time - extreme0.fix.time).to_duration]
+      rows << ["Accumulated height gain", "%dm" % sum_alt_gain]
+      rows << ["Accumulated height loss", "%dm" % sum_alt_loss]
+      description = KML::Description.new(KML::CData.new(rows.to_html_table))
       placemark = KML::Placemark.new(multi_geometry, description, KML::Snippet.new, :styleUrl => style.url, :name => name, :visibility => 0)
       folder.add(placemark)
     end
