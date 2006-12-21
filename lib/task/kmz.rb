@@ -26,7 +26,7 @@ class Task
   class TakeOff < StartCircle
 
     def description
-      "Take off (#{@name})"
+      "Take off"
     end
 
     def label
@@ -42,11 +42,7 @@ class Task
   class Turnpoint < Circle
 
     def description
-      if radius == DEFAULT_RADIUS
-        "Turnpoint (#{@name})"
-      else
-        "Turnpoint (%dm around %s)" % [radius, @name]
-      end
+      radius == DEFAULT_RADIUS ? "Turnpoint" : "Turnpoint (%dm radius)" % radius
     end
 
     def label
@@ -62,7 +58,7 @@ class Task
   class StartOfSpeedSection < StartCircle
 
     def description
-      "Start of speed section (%.1fkm around %s)" % [radius / 1000.0, @name]
+      "Start of speed section (%.1fkm radius)" % (radius / 1000.0)
     end
 
     def label
@@ -74,7 +70,7 @@ class Task
   class EndOfSpeedSection < Circle
 
     def description
-      "End of speed section (%.1fkm around %s)" % [radius / 1000.0, @name]
+      "End of speed section (%.1fkm radius)" % (radius / 1000.0)
     end
 
     def label
@@ -86,11 +82,7 @@ class Task
   class GoalCircle < Circle
 
     def description
-      if radius == DEFAULT_RADIUS
-        "Goal (#{@name})"
-      else
-        "Goal (%1.fkm around %s)" % [radius / 1000.0, @name]
-      end
+      radius == DEFAULT_RADIUS ? "Goal" : "Goal (%dm radius)" % radius
     end
 
     def label
@@ -110,7 +102,7 @@ class Task
     end
 
     def description
-      "Goal line (%dm wide at %s)" % [@length, @name]
+      "Goal line (%dm wide)" % @length
     end
 
     def label
@@ -120,9 +112,11 @@ class Task
   end
 
   def to_kmz(hints, options = {})
-    folder = KML::Folder.new(KML::Name.new("Task"), options)
+    folder = KML::Folder.new(KML::Name.new("%s task %d (%.1fkm)" % [@competition_name, @number, @distance / 1000.0]), options)
     object0 = nil
     turnpoint_number = 0
+    rows = []
+    distance = 0
     @course.each do |object|
       if object.is_a?(Turnpoint) or object.is_a?(GoalCircle) or object.is_a?(GoalLine)
         if object0
@@ -134,6 +128,7 @@ class Task
           description = "%s to %s (%.1fkm)" % [object0.name, object.name, object0.distance_to(object) / 1000.0]
           placemark = KML::Placemark.new(multi_geometry, KML::Snippet.new, :name => name, :description => description, :styleUrl => hints.stock.task_style.url)
           folder.add(placemark)
+          distance += object0.distance_to(object)
         end
         object0 = object
       elsif object.is_a?(TakeOff)
@@ -147,7 +142,10 @@ class Task
       end
       placemark = KML::Placemark.new(object.kml_geometry, KML::Snippet.new, :name => label, :description => object.description, :styleUrl => hints.stock.task_style.url)
       folder.add(placemark)
+      rows << [label, "%.1fkm" % (distance / 1000.0), object.name, object.description]
     end
+    folder.add(KML::Description.new(KML::CData.new(rows.to_html_table)))
+    folder.add(KML::Snippet.new)
     KMZ.new(folder)
   end
 

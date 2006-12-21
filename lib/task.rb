@@ -107,12 +107,18 @@ class Task
 
   attr_reader :competition_name
   attr_reader :number
+  attr_reader :distance
   attr_reader :course
 
   def initialize(competition_name, number, course)
     @competition_name = competition_name
     @number = number
     @course = course
+    @distance = 0
+    @course.each_cons(2) do |object0, object1|
+      @distance += object0.distance_to(object1)
+      break if object1.is_a?(GoalCircle) or object1.is_a?(GoalLine)
+    end
   end
 
 end
