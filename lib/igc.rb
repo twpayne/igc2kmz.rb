@@ -90,8 +90,9 @@ class IGC
       when /\AH([FOP])FXA(\d{3})\s*\z/i
         @header[:fix_accuracy] = $2.to_i
       when /\AH([FOP])(#{HEADERS.keys.join("|")})[ A-Z]*:(.*?)\z/io
+        key = HEADERS[$2]
         value = $3.strip
-        @header[HEADERS[$2]] = value unless value.empty?
+        @header[key] = value unless /\A(|none|not\s+set)\z/i.match(value)
       when /\AI(\d\d)(\d{4}[0-9A-Z]{3})*\s*\z/i
         unless $1.to_i.zero?
           $2.scan(/(\d\d)(\d\d)([0-9A-Z]{3})/) do |md|
