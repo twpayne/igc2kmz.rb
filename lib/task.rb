@@ -1,4 +1,5 @@
 require "coord"
+require "enumerator"
 require "lib"
 
 class Task
