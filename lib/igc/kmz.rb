@@ -415,8 +415,8 @@ class IGC
     rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     if hints.task
       task = hints.task
-      rows << ["Competition", "#{task.competition_name} task #{task.number}"]
-      rows << ["Task distance", "%.1fkm" % (task.distance / 1000.0)]
+      rows << ["Competition","%s task %d" %  [task.competition_name, task.number]]
+      rows << ["Task", "%.1fkm %s" % [task.distance / 1000.0, Task::TYPES[task.type]]]
     end
     if hints.optima
       optimum = hints.optima.optima.sort_by(&:score)[-1]

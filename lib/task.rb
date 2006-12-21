@@ -4,6 +4,11 @@ require "lib"
 
 class Task
 
+  TYPES = {
+    :elapsedtime => "elapsed time",
+    :racetogoal  => "race to goal",
+  }
+
   class Point < Coord
 
     attr_reader :name
@@ -108,12 +113,14 @@ class Task
 
   attr_reader :competition_name
   attr_reader :number
+  attr_reader :type
   attr_reader :distance
   attr_reader :course
 
-  def initialize(competition_name, number, course)
+  def initialize(competition_name, number, type, course)
     @competition_name = competition_name
     @number = number
+    @type = type
     @course = course
     @distance = 0
     @course.each_cons(2) do |object0, object1|

@@ -112,7 +112,9 @@ class Task
   end
 
   def to_kmz(hints, options = {})
-    folder = KML::Folder.hide_children(KML::Name.new("%s task %d (%.1fkm)" % [@competition_name, @number, @distance / 1000.0]), options)
+    name = "%s task %d" % [@competition_name, @number]
+    snippet = "%.1fkm %s" % [@distance / 1000.0, Task::TYPES[@type]]
+    folder = KML::Folder.hide_children(KML::Name.new(name), KML::Snippet.new(snippet), options)
     object0 = nil
     turnpoint_number = 0
     rows = []
@@ -144,8 +146,7 @@ class Task
       folder.add(placemark)
       rows << [label, "%.1fkm" % (distance / 1000.0), object.name, object.description]
     end
-    folder.add(KML::Description.new(KML::CData.new(rows.to_html_table)))
-    folder.add(KML::Snippet.new)
+    folder.add(KML::Description.new(KML::CData.new("<p>#{snippet}</p>#{rows.to_html_table}")))
     KMZ.new(folder)
   end
 

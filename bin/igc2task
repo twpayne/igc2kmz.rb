@@ -8,7 +8,7 @@ require "task"
 require "task/gpx"
 
 def main
-  competition_name = task_number = nil
+  competition_name = task_number = type = nil
   window_open_time = nil
   start_circle_index = 1
   start_circle_radius = nil
@@ -22,8 +22,11 @@ def main
     op.on("-c", "--competition COMPETITION", String, "Compeition") do |arg|
       competition_name = arg
     end
-    op.on("-t", "--task TASK", Integer, "Task number") do |arg|
+    op.on("-n", "--number NUMBER", Integer, "Task number") do |arg|
       task_number = arg
+    end
+    op.on("-t", "--type TYPE", Task::TYPES.keys, "Type") do |arg|
+      type = arg
     end
     op.on("-w", "--window-open TIME", /(\d\d):(\d\d)/, "Window open") do |arg|
       window_open_time = 3600 * arg[1].to_i + 60 * arg[2].to_i
@@ -82,7 +85,7 @@ def main
       last_turnpoint = Task::Turnpoint.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, nil)
     end
   end
-  task = Task.new(competition_name, task_number, course)
+  task = Task.new(competition_name, task_number, type, course)
   GPX.new(task.to_gpx).write($stdout, 0)
 end
 
