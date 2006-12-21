@@ -362,8 +362,11 @@ class IGC
       stock.optima_style = KML::Style.new(icon_style, label_style, line_style)
       stock.kmz.merge_roots(stock.optima_style)
       # task
+      color = KML::Color.color("yellow")
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => IGC::ICON_SCALE)
-      stock.task_style = KML::Style.new(icon_style)
+      label_style = KML::LabelStyle.new(color)
+      line_style = KML::LineStyle.new(color)
+      stock.task_style = KML::Style.new(icon_style, label_style, line_style)
       stock.kmz.merge_roots(stock.task_style)
       # none folders
       stock.visible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 1)
