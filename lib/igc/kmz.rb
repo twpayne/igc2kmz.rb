@@ -9,6 +9,7 @@ require "optima/kmz"
 require "ostruct"
 require "photo/kmz"
 require "task/kmz"
+require "units"
 require "rvg/rvg"
 
 class KML
@@ -103,16 +104,6 @@ module Magick
       image
     end
 
-  end
-
-end
-
-class Numeric
-
-  def to_duration
-    rem, secs = self.divmod(60)
-    hours, mins = rem.divmod(60)
-    "%d:%02d:%02d" % [hours, mins, secs]
   end
 
 end
@@ -303,16 +294,14 @@ class IGC
 
     def to_kml(hints, name, point_options, *children)
       point = KML::Point.new(KML::Coordinates.new(self), point_options)
-      a = "#{@alt}m"
-      t = (@time + hints.tz_offset).strftime("%H:%M:%S")
       case name
-      when :alt  then name = a
-      when :time then name = t
+      when :alt  then name = @alt.to_altitude(hints)
+      when :time then name = @time.to_time(hints)
       end
       name = KML::Name.new(name) if name.is_a?(String)
       statistics = []
-      statistics << ["Altitude", a]
-      statistics << ["Time", t]
+      statistics << ["Altitude", @alt.to_altitude(hints)]
+      statistics << ["Time", @time.to_time(hints)]
       description = KML::Description.new(KML::CData.new(statistics.to_html_table))
       KML::Placemark.new(point, name, description, KML::Snippet.new, *children)
     end
@@ -381,6 +370,7 @@ class IGC
       hints.photo_tz_offset = 0
       hints.photos = []
       hints.stock = stock
+      hints.units = :metric
       hints.width = 2
       hints
     end
@@ -390,29 +380,29 @@ class IGC
   def make_description(hints)
     rows = []
     rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
-    rows << ["Date", (@fixes[0].time + hints.tz_offset).strftime("%A, %d %B %Y")]
+    rows << ["Date", @fixes[0].time.to_time(hints, "%A, %d %B %Y")]
     rows << ["Site", @header[:site]] if @header[:site]
     rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     if hints.task
       task = hints.task
       rows << ["Competition","%s task %d" %  [task.competition_name, task.number]]
-      rows << ["Task", "%.1fkm %s" % [task.distance / 1000.0, Task::TYPES[task.type]]]
+      rows << ["Task", "%s %s" % [task.distance.to_distance(hints), Task::TYPES[task.type]]]
     end
     if hints.optima
       optimum = hints.optima.optima.sort_by(&:score)[-1]
       rows << ["Cross country league", Optima::LEAGUES[hints.optima.league]]
       rows << ["Cross country type", optimum.flight_type]
-      rows << ["Cross country distance", "%.1fkm (%.1f points)" % [optimum.distance / 1000, optimum.score]]
+      rows << ["Cross country distance", "%s (%.1f points)" % [optimum.distance.to_distance(hints), optimum.score]]
       rows << ["Time on task", (optimum.fixes[-1].time - optimum.fixes[0].time).to_duration]
-      rows << ["Average speed", "%.1fkm/h" % (3.6 * optimum.distance / (optimum.fixes[-1].time - optimum.fixes[0].time))]
+      rows << ["Average speed", (optimum.distance / (optimum.fixes[-1].time - optimum.fixes[0].time)).to_speed(hints)]
     end
-    rows << ["Take off time", (@fixes[0].time + hints.tz_offset).strftime("%H:%M:%S")]
-    rows << ["Landing time", (@fixes[-1].time + hints.tz_offset).strftime("%H:%M:%S")]
+    rows << ["Take off time", @fixes[0].time.to_time(hints)]
+    rows << ["Landing time", @fixes[-1].time.to_time(hints)]
     rows << ["Duration", (@fixes[-1].time - @fixes[0].time).to_duration]
-    rows << ["Take off altitude", "%dm" % @fixes[0].alt]
-    rows << ["Maximum altitude", "%dm" % @bounds.alt.last]
-    rows << ["Maximum altitude above take off", "%dm" % (@bounds.alt.last - @fixes[0].alt)]
-    rows << ["Minimum altitude", "%dm" % @bounds.alt.first]
+    rows << ["Take off altitude", @fixes[0].alt.to_altitude(hints)]
+    rows << ["Maximum altitude", @bounds.alt.last.to_altitude(hints)]
+    rows << ["Maximum altitude above take off", (@bounds.alt.last - @fixes[0].alt).to_altitude(hints)]
+    rows << ["Minimum altitude", @bounds.alt.first.to_altitude(hints)]
     max_alt_gain = 0
     min_alt = max_alt = @fixes[0].alt
     @fixes.each do |fix|
@@ -424,15 +414,15 @@ class IGC
         max_alt_gain = alt_gain if alt_gain > max_alt_gain
       end
     end
-    rows << ["Maximum altitude gain", "%dm" % max_alt_gain]
+    rows << ["Maximum altitude gain", max_alt_gain.to_altitude(hints)]
     sum_alt_gain = 0
     @fixes.each_cons(2) do |fix0, fix1|
       change = fix1.alt - fix0.alt
       sum_alt_gain += change if change > 0
     end
-    rows << ["Accumulated altitude gain", "%dm" % sum_alt_gain]
-    rows << ["Maximum climb", "%+.1fm/s" % @bounds.climb.last]
-    rows << ["Maximum sink", "%+.1fm/s" % @bounds.climb.first]
+    rows << ["Accumulated altitude gain", sum_alt_gain.to_altitude(hints)]
+    rows << ["Maximum climb", @bounds.climb.last.to_climb(hints)]
+    rows << ["Maximum sink", @bounds.climb.first.to_climb(hints)]
     rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
     KML::Description.new(KML::CData.new(rows.to_html_table))
   end
@@ -462,7 +452,7 @@ class IGC
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
     fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
     fields << @header[:site] if @header[:site]
-    fields << (@fixes[0].time + hints.tz_offset).strftime("%d %b %Y")
+    fields << @fixes[0].time.to_time(hints, "%d %b %Y")
     snippet = KML::Snippet.new(fields.join(", "), :maxlines => 1)
     kmz = KMZ.new(KML::Folder.new(make_description(hints), snippet, :name => @filename, :open => 1))
     kmz.merge(hints.stock.kmz)
@@ -576,10 +566,10 @@ class IGC
       line_string = KML::LineString.new(:coordinates => [extreme0.fix, extreme1.fix], :altitudeMode => :absolute)
       multi_geometry = KML::MultiGeometry.new(point, line_string)
       if extreme0.is_a?(Extreme::Minimum)
-        name = "+%dm at %.1fm/s" % [dz, dz.to_f / dt]
+        name = "%s at %s" % [dz.to_altitude(hints), (dz.to_f / dt).to_climb(hints)]
         style = thermal_style
       else
-        name = "%.1fkm at %.1f:1" % [ds / 1000.0, -ds / dz]
+        name = "%s at %s" % [ds.to_distance(hints), (-ds / dz).to_glide(hints)]
         style = glide_style
       end
       min_climb = max_climb = max_speed = 0.0
@@ -596,25 +586,25 @@ class IGC
       end
       rows = []
       if extreme0.is_a?(Extreme::Minimum)
-        rows << ["Altitude gain", "%dm" % dz]
-        rows << ["Average climb", "%+.1fm/s" % (dz.to_f / dt)]
-        rows << ["Maximum climb", "%+.1fm/s" % max_climb]
+        rows << ["Altitude gain", dz.to_altitude(hints)]
+        rows << ["Average climb", (dz.to_f / dt).to_climb(hints)]
+        rows << ["Maximum climb", max_climb.to_climb(hints)]
       else
-        rows << ["Distance", "%.1fkm" % (ds / 1000.0)]
-        rows << ["Altitude loss", "%dm" % -dz]
-        rows << ["Average glide ratio", "%.1f:1" % (-ds / dz)]
-        rows << ["Average speed", "%dkm/h" % (3.6 * ds / dt)]
-        rows << ["Maximum speed", "%dkm/h" % (3.6 * max_speed)]
-        rows << ["Average sink", "%+.1fm/s" % (dz.to_f / dt)]
-        rows << ["Maximum sink", "%+.1fm/s" % min_climb]
+        rows << ["Distance", ds.to_distance(hints)]
+        rows << ["Altitude loss", (-dz).to_altitude(hints)]
+        rows << ["Average glide ratio", (-ds / dz).to_glide(hints)]
+        rows << ["Average speed", (ds / dt).to_speed(hints)]
+        rows << ["Maximum speed", max_speed.to_speed(hints)]
+        rows << ["Average sink", (dz.to_f / dt).to_climb(hints)]
+        rows << ["Maximum sink", min_climb.to_climb(hints)]
       end
-      rows << ["Start altitude", "%dm" % extreme0.fix.alt]
-      rows << ["Finish altitude", "%dm" % extreme1.fix.alt]
-      rows << ["Start time", (extreme0.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
-      rows << ["Finish time", (extreme1.fix.time + hints.tz_offset).strftime("%H:%M:%S")]
+      rows << ["Start altitude", extreme0.fix.alt.to_altitude(hints)]
+      rows << ["Finish altitude", extreme1.fix.alt.to_altitude(hints)]
+      rows << ["Start time", extreme0.fix.time.to_time(hints)]
+      rows << ["Finish time", extreme1.fix.time.to_time(hints)]
       rows << ["Duration", (extreme1.fix.time - extreme0.fix.time).to_duration]
-      rows << ["Accumulated altitude gain", "%dm" % sum_alt_gain]
-      rows << ["Accumulated altitude loss", "%dm" % sum_alt_loss]
+      rows << ["Accumulated altitude gain", sum_alt_gain.to_altitude(hints)]
+      rows << ["Accumulated altitude loss", sum_alt_loss.to_altitude(hints)]
       description = KML::Description.new(KML::CData.new(rows.to_html_table))
       placemark = KML::Placemark.new(multi_geometry, description, KML::Snippet.new, :styleUrl => style.url, :name => name, :visibility => 0)
       folder.add(placemark)
@@ -632,7 +622,7 @@ class IGC
       if time < fix.time
         periods.each do |period|
           if (60 * time.min + time.sec) % period.period == 0
-            name = (time + hints.tz_offset).strftime("%H:%M")
+            name = time.to_time(hints,"%H:%M")
             folder.add(fix.to_kml(hints, name, {:altitudeMode => :absolute}, *period.children))
             break
           end
