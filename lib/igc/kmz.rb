@@ -453,7 +453,7 @@ class IGC
     fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
     fields << @header[:site] if @header[:site]
     fields << @fixes[0].time.to_time(hints, "%d %b %Y")
-    snippet = KML::Snippet.new(fields.join(", "), :maxlines => 1)
+    snippet = KML::Snippet.new(fields.join(", "))
     kmz = KMZ.new(KML::Folder.new(make_description(hints), snippet, :name => @filename, :open => 1))
     kmz.merge(hints.stock.kmz)
     kmz.merge(track_log_folder(hints))
