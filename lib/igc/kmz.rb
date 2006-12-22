@@ -380,7 +380,7 @@ class IGC
   def make_description(hints)
     rows = []
     rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
-    rows << ["Date", @fixes[0].time.to_time(hints, "%A, %d %B %Y")]
+    rows << ["Date", @fixes[0].time.to_time(hints, "%Y-%m-%d")]
     rows << ["Site", @header[:site]] if @header[:site]
     rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     if hints.task
@@ -452,7 +452,7 @@ class IGC
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
     fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
     fields << @header[:site] if @header[:site]
-    fields << @fixes[0].time.to_time(hints, "%d %b %Y")
+    fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     snippet = KML::Snippet.new(fields.join(", "))
     kmz = KMZ.new(KML::Folder.new(make_description(hints), snippet, :name => @filename, :open => 1))
     kmz.merge(hints.stock.kmz)
