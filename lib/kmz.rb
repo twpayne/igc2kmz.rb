@@ -55,8 +55,8 @@ class KMZ
     self
   end
 
-  def write(filename)
-    doc = KML::Document.new
+  def write(filename, options)
+    doc = KML::Document.new(options)
     doc.add(*@roots)
     doc.add(*@elements)
     Zip::ZipOutputStream.open(filename) do |kmz|

@@ -501,7 +501,7 @@ class IGC
   end
 
   def track_log_folder(hints)
-    kmz = KMZ.new(KML::Folder.radio(:name => "Track log"))
+    kmz = KMZ.new(KML::Folder.radio(:name => "Track log", :open => 1))
     kmz.merge(hints.stock.invisible_none_folder)
     kmz.merge(make_colored_track_log(hints, @fixes.collect(&:alt), hints.scales.altitude))
     kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
