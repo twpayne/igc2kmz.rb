@@ -1,3 +1,5 @@
+require "uri"
+
 class Sponsor
 
   attr_reader :name
@@ -7,7 +9,7 @@ class Sponsor
   def initialize(name, url, img)
     @name = name
     @url = url
-    @img = img
+    @img = img.is_a?(URI) ? img : URI.parse(img)
   end
 
 end

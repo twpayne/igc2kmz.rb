@@ -12,7 +12,7 @@ require "uri"
 
 SPONSORS = {
   :gradient => Sponsor.new("Gradient",    "http://www.gradient.cx/",    "http://www.mpg.cz/gradient-logo.gif"),
-  :gin      => Sponsor.new("Gin Gliders", "http://www.gingliders.com/", "http://www.flyfreeparagliding.nl/images/Gin%20logo%201.gif"),
+  :gin      => Sponsor.new("Gin Gliders", "http://www.gingliders.com/", "images/gin/logo.png"),
   :ozone    => Sponsor.new("Ozone",       "http://www.flyozone.com/",   "http://www.flyozone.com/common/images/logo.jpg"),
 }
 
