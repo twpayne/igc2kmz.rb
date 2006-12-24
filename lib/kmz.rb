@@ -36,6 +36,13 @@ class KMZ
     self
   end
 
+  def merge_sibling(kmz)
+    merge_roots(*kmz.elements)
+    merge_roots(*kmz.roots)
+    merge_files(kmz.files)
+    self
+  end
+
   def merge_roots(*roots)
     @roots.concat(roots)
     self
@@ -55,8 +62,8 @@ class KMZ
     self
   end
 
-  def write(filename, options)
-    doc = KML::Document.new(options)
+  def write(filename)
+    doc = KML::Document.new
     doc.add(*@roots)
     doc.add(*@elements)
     Zip::ZipOutputStream.open(filename) do |kmz|

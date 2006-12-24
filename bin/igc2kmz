@@ -55,7 +55,7 @@ def main(argv)
     end
   end
   raise unless igc
-  igc.to_kmz(hints).write("#{igc.filename}.kmz", :open => 1)
+  igc.to_kmz(hints).write("#{igc.filename}.kmz")
 end
 
 main(ARGV) if $0 == __FILE__

@@ -454,17 +454,17 @@ class IGC
     fields << @header[:site] if @header[:site]
     fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     snippet = KML::Snippet.new(fields.join(", "))
-    kmz = KMZ.new(KML::Folder.new(make_description(hints), snippet, :name => @filename, :open => 1))
-    kmz.merge(hints.stock.kmz)
-    kmz.merge(track_log_folder(hints))
-    kmz.merge(shadow_folder(hints))
-    kmz.merge(photos_folder(hints)) if hints.photos
-    kmz.merge(optima_folder(hints)) if hints.optima
-    kmz.merge(competition_folder(hints)) if hints.task
-    kmz.merge(altitude_marks_folder(hints))
-    kmz.merge(thermals_and_glides_folder(hints))
-    kmz.merge(time_marks_folder(hints))
-    kmz.merge(graphs_folder(hints))
+    kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(@filename), KML::Open.new(1))
+    kmz.merge_sibling(hints.stock.kmz)
+    kmz.merge_sibling(track_log_folder(hints))
+    kmz.merge_sibling(shadow_folder(hints))
+    kmz.merge_sibling(photos_folder(hints)) if hints.photos
+    kmz.merge_sibling(optima_folder(hints)) if hints.optima
+    kmz.merge_sibling(competition_folder(hints)) if hints.task
+    kmz.merge_sibling(altitude_marks_folder(hints))
+    kmz.merge_sibling(thermals_and_glides_folder(hints))
+    kmz.merge_sibling(time_marks_folder(hints))
+    kmz.merge_sibling(graphs_folder(hints))
   end
 
   def make_monochromatic_track_log(color, width, altitude_mode, folder_options = {})
