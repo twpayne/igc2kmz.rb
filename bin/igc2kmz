@@ -11,9 +11,9 @@ require "task/gpx"
 require "uri"
 
 SPONSORS = {
-  :gradient => Sponsor.new("Gradient",    "http://www.gradient.cx/",    "http://www.mpg.cz/gradient-logo.gif"),
+  :gradient => Sponsor.new("Gradient",    "http://www.gradient.cx/",    "images/gradient.png"),
   :gin      => Sponsor.new("Gin Gliders", "http://www.gingliders.com/", "images/gin.png"),
-  :ozone    => Sponsor.new("Ozone",       "http://www.flyozone.com/",   "http://www.flyozone.com/common/images/logo.jpg"),
+  :ozone    => Sponsor.new("Ozone",       "http://www.flyozone.com/",   "images/ozone.jpg"),
 }
 
 TIME_REGEXP = /\A([+\-])?([0-9]|1[01])(?::([0-5][0-9]))?\z/
