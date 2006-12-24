@@ -8,6 +8,7 @@ require "optima"
 require "optima/kmz"
 require "ostruct"
 require "photo/kmz"
+require "sponsor/kmz"
 require "task/kmz"
 require "units"
 require "rvg/rvg"
@@ -290,8 +291,6 @@ class IGC
   ICON_SCALE = 0.5
   LABEL_SCALES = [1.0, Math.sqrt(0.8), Math.sqrt(0.6), Math.sqrt(0.4)]
 
-  Sponsor = Struct.new(:name, :url, :img)
-
   class Fix
 
     def to_kml(hints, name, point_options, *children)
@@ -357,7 +356,6 @@ class IGC
       hints.color = KML::Color.color("red")
       hints.complexity = 4
       hints.league = :open
-      hints.sponsor = Sponsor.new("Ozone", "http://www.flyozone.com/", "http://www.flyozone.com/common/images/logo.jpg")
       hints.photo_tz_offset = 0
       hints.photos = []
       hints.stock = stock
@@ -450,7 +448,7 @@ class IGC
     kmz.merge_sibling(thermals_and_glides_folder(hints))
     kmz.merge_sibling(time_marks_folder(hints))
     kmz.merge_sibling(graphs_folder(hints))
-    kmz.merge_sibling(make_logo(hints)) if hints.sponsor
+    kmz.merge_sibling(hints.sponsor.to_kmz(hints)) if hints.sponsor
   end
 
   def make_monochromatic_track_log(color, width, altitude_mode, folder_options = {})
@@ -694,21 +692,6 @@ class IGC
     kmz.merge(make_graph(hints, @fixes.collect(&:alt), hints.scales.altitude, :visibility => 0))
     kmz.merge(make_graph(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
     kmz.merge(make_graph(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
-  end
-
-  def make_logo(hints)
-    sponsor = hints.sponsor
-    name = KML::Name.new("Sponsored by #{sponsor.name}")
-    description = KML::Description.new(KML::CData.new(<<-EOHTML))
-      <p><a href="#{sponsor.url}"><img alt="#{sponsor.name}" src="#{sponsor.img}" /></a></p>
-      <p>Created by <a href="http://maximumxc.com/">maximumxc.com</a></p>
-    EOHTML
-    snippet = KML::Snippet.new
-    icon = KML::Icon.new(:href => sponsor.img)
-    overlay_xy = KML::OverlayXY.new(:x => 0.5, :y => 1, :xunits => :fraction, :yunits => :fraction)
-    screen_xy = KML::ScreenXY.new(:x => 0.5, :y => 1, :xunits => :fraction, :yunits => :fraction)
-    size = KML::Size.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
-    KMZ.new(KML::ScreenOverlay.new(name, description, snippet, icon, overlay_xy, screen_xy, size))
   end
 
 end

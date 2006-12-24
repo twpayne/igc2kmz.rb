@@ -6,8 +6,15 @@ require "igc/kmz"
 require "optparse"
 require "photo"
 require "rexml/document"
+require "sponsor"
 require "task/gpx"
 require "uri"
+
+SPONSORS = {
+  :gradient => Sponsor.new("Gradient",    "http://www.gradient.cx/",    "http://www.mpg.cz/gradient-logo.gif"),
+  :gin      => Sponsor.new("Gin Gliders", "http://www.gingliders.com/", "http://www.flyfreeparagliding.nl/images/Gin%20logo%201.gif"),
+  :ozone    => Sponsor.new("Ozone",       "http://www.flyozone.com/",   "http://www.flyozone.com/common/images/logo.jpg"),
+}
 
 TIME_REGEXP = /\A([+\-])?([0-9]|1[01])(?::([0-5][0-9]))?\z/
 
@@ -25,6 +32,9 @@ def main(argv)
     end
     op.on("-p", "--photo-tz-offset OFFSET", TIME_REGEXP, "Photo timezone offset") do |arg|
       hints.photo_tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == "-" ? -60 : 60)
+    end
+    op.on("-s", "--sponsor SPONSOR", SPONSORS.keys, "Sponsor") do |arg|
+      hints.sponsor = SPONSORS[arg]
     end
     op.on("-t", "--task FILENAME", String, "Task") do |arg|
       hints.task = Task.new_from_gpx(REXML::Document.new(File.open(arg)).root.elements["rte"])
