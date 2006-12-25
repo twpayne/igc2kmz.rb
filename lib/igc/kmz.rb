@@ -473,7 +473,7 @@ class IGC
     image = scale.to_image
     image.set_channel_depth(Magick::AllChannels, 8)
     image.format = "png"
-    href = "images/%x.%s" % [image.object_id.abs, image.format.downcase]
+    href = "images/scales/#{scale.title}.#{image.format.downcase}"
     icon = KML::Icon.new(:href => href)
     overlay_xy = KML::OverlayXY.new(:x => 0, :y => 1, :xunits => :fraction, :yunits => :fraction)
     screen_xy = KML::ScreenXY.new(:x => 0, :y => 1, :xunits => :fraction, :yunits => :fraction)
@@ -675,7 +675,7 @@ class IGC
     image = scale.to_graph_image(hints, @times, values)
     image.set_channel_depth(Magick::AllChannels, 8)
     image.format = "png"
-    href = "images/%x.%s" % [image.object_id.abs, image.format.downcase]
+    href = "images/graphs/#{scale.title}.#{image.format.downcase}"
     icon = KML::Icon.new(:href => href)
     overlay_xy = KML::OverlayXY.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
     screen_xy = KML::ScreenXY.new(:x => 0, :y => 16, :xunits => :fraction, :yunits => :pixels)
