@@ -8,6 +8,7 @@ require "photo"
 require "rexml/document"
 require "sponsor"
 require "task/gpx"
+require "units"
 require "uri"
 
 SPONSORS = {
@@ -39,8 +40,8 @@ def main(argv)
     op.on("-t", "--task FILENAME", String, "Task") do |arg|
       hints.task = Task.new_from_gpx(REXML::Document.new(File.open(arg)).root.elements["rte"])
     end
-    op.on("-u", "--units UNITS", [:metric, :imperial, :nautical], "Units (metric|imperial)") do |arg|
-      hints.units = arg
+    op.on("-u", "--units UNITS", Units::GROUPS.keys, "Units") do |arg|
+      hints.units = Units::GROUPS[arg]
     end
     op.on("-w", "--width WIDTH", "Width", Integer) do |arg|
       hints.width = arg.constrain(1)

@@ -43,7 +43,7 @@ class Task
   class Turnpoint < Circle
 
     def description(hints)
-      radius == DEFAULT_RADIUS ? "Turnpoint" : "Turnpoint (%s radius)" % radius.to_altitude(hints)
+      radius == DEFAULT_RADIUS ? "Turnpoint" : "Turnpoint (%s radius)" % hints.units[:altitude][radius]
     end
 
     def label
@@ -59,7 +59,7 @@ class Task
   class StartOfSpeedSection < StartCircle
 
     def description(hints)
-      "Start of speed section (%s radius)" % radius.to_distance(hints)
+      "Start of speed section (%s radius)" % hints.units[:distance][radius]
     end
 
     def label
@@ -71,7 +71,7 @@ class Task
   class EndOfSpeedSection < Circle
 
     def description(hints)
-      "End of speed section (%s radius)" % radius.to_distance(hints)
+      "End of speed section (%s radius)" % hints.units[:distance][radius]
     end
 
     def label
@@ -83,7 +83,7 @@ class Task
   class GoalCircle < Circle
 
     def description(hints)
-      radius == DEFAULT_RADIUS ? "Goal" : "Goal (%s radius)" % radius.to_altitude(hints)
+      radius == DEFAULT_RADIUS ? "Goal" : "Goal (%s radius)" % hints.units[:altitude][radius]
     end
 
     def label
@@ -103,7 +103,7 @@ class Task
     end
 
     def description(hints)
-      "Goal line (%s wide)" % @length.to_altitude(hints)
+      "Goal line (%s wide)" % hints.units[:altitude][@length]
     end
 
     def label
@@ -114,7 +114,7 @@ class Task
 
   def to_kmz(hints, options = {})
     name = "%s task %d" % [@competition_name, @number]
-    snippet = "%s %s" % [@distance.to_distance(hints), Task::TYPES[@type]]
+    snippet = "%s %s" % [hints.units[:distance][@distance], Task::TYPES[@type]]
     folder = KML::Folder.hide_children(KML::Name.new(name), KML::Snippet.new(snippet), options)
     object0 = nil
     turnpoint_number = 0
@@ -125,8 +125,8 @@ class Task
           line_string = KML::LineString.new(:coordinates => coords)
           point = KML::Point.new(:coordinates => coords[0].halfway_to(coords[1]))
           multi_geometry = KML::MultiGeometry.new(point, line_string)
-          name = object0.distance_to(object).to_distance(hints)
-          description = "%s to %s (%s)" % [object0.name, object.name, object0.distance_to(object).to_distance(hints)]
+          name = hints.units[:distance][object0.distance_to(object)]
+          description = "%s to %s (%s)" % [object0.name, object.name, hints.units[:distance][object0.distance_to(object)]]
           placemark = KML::Placemark.new(multi_geometry, KML::Snippet.new, :name => name, :description => description, :styleUrl => hints.stock.task_style.url)
           folder.add(placemark)
         end
@@ -149,7 +149,7 @@ class Task
     object0 = nil
     @course.each_with_index do |object, index|
       cumulative_distance += object0.distance_to(object) if object0
-      rows << [labels[index], cumulative_distance.to_distance(hints), object.name, object.description(hints)]
+      rows << [labels[index], hints.units[:distance][cumulative_distance], object.name, object.description(hints)]
       object0 = object
     end
     folder.add(KML::Description.new(KML::CData.new("<p>#{snippet}</p>#{rows.to_html_table}")))
