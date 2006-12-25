@@ -433,9 +433,9 @@ class IGC
     hints.scales.speed = Scale.new("speed", hints.bounds.speed, "%d", "km/h", 3.6)
     fields = []
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
+    fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
     fields << @header[:site] if @header[:site]
-    fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     snippet = KML::Snippet.new(fields.join(", "))
     kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(@filename), KML::Open.new(1))
     kmz.merge_sibling(hints.stock.kmz)
