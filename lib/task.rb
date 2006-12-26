@@ -71,7 +71,8 @@ class Task
   class StartOfSpeedSection < StartCircle
 
     def intersect?(fix0, fix1)
-      @start_time <= fix0.time and super and fix0
+      return false if @start_time and fix0.time < @start_time
+      super and fix0
     end
 
   end

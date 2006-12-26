@@ -8,19 +8,19 @@ require "task"
 require "task/gpx"
 
 def main
-  competition_name = task_number = type = nil
+  competition = task_number = type = nil
   window_open_time = nil
-  start_circle_index = 1
+  start_circle_index = nil
   start_circle_radius = nil
   start_time = nil
-  end_circle_index = -2
+  end_circle_index = nil
   end_circle_radius = nil
   goal_index = -1
   goal_circle_radius = nil
   goal_line_length = nil
   OptionParser.new do |op|
     op.on("-c", "--competition COMPETITION", String, "Compeition") do |arg|
-      competition_name = arg
+      competition = arg
     end
     op.on("-n", "--number NUMBER", Integer, "Task number") do |arg|
       task_number = arg
@@ -61,8 +61,8 @@ def main
   waypoints = igc.route.find_all do |waypoint|
     not ["TAKEOFF", "LANDING"].include?(waypoint.name)
   end
-  start_circle_index += waypoints.length if start_circle_index < 0
-  end_circle_index += waypoints.length if end_circle_index < 0
+  start_circle_index += waypoints.length if start_circle_index and start_circle_index < 0
+  end_circle_index += waypoints.length if end_circle_index and end_circle_index < 0
   goal_index += waypoints.length if goal_index < 0
   last_turnpoint = nil
   course = waypoints.collect_with_index do |waypoint, index|
@@ -85,7 +85,7 @@ def main
       last_turnpoint = Task::Turnpoint.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, nil)
     end
   end
-  task = Task.new(competition_name, task_number, type, course)
+  task = Task.new(competition, task_number, type, course)
   GPX.new(task.to_gpx).write($stdout, 0)
 end
 

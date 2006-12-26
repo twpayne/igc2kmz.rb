@@ -180,6 +180,7 @@ class Task
         when "endofspeedsection"   then course << EndOfSpeedSection.new_from_gpx(rtept)
         when "goalcircle"          then course << GoalCircle.new_from_gpx(rtept)
         when "goalline"            then course << GoalLine.new_from_gpx(rtept)
+        else raise
         end
       end
       new(competition, number, type, course)
