@@ -115,7 +115,7 @@ class Task
   def to_kmz(hints, options = {})
     name = "%s task %d" % [@competition_name, @number]
     snippet = "%s %s" % [hints.units[:distance][@distance], Task::TYPES[@type]]
-    folder = KML::Folder.hide_children(KML::Name.new(name), KML::Snippet.new(snippet), options)
+    folder = KML::Folder.new(KML::Name.new(name), KML::Snippet.new(snippet), KML::StyleUrl.new(hints.stock.check_hide_children_style.url), options)
     object0 = nil
     turnpoint_number = 0
     labels = @course.collect do |object|

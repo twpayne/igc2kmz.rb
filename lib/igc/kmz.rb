@@ -39,24 +39,6 @@ class KML
 
   end
 
-  class Folder
-
-    class << self
-
-      def radio(*args)
-        style = KML::Style.new(KML::ListStyle.new(:listItemType => :radioFolder))
-        new(style, *args)
-      end
-
-      def hide_children(*args)
-        style = KML::Style.new(KML::ListStyle.new(:listItemType => :checkHideChildren))
-        new(style, *args)
-      end
-
-    end
-
-  end
-
 end
 
 module Gradient
@@ -354,12 +336,19 @@ class IGC
       screen_xy = KML::ScreenXY.new(:x => 0, :y => 1, :xunits => :fraction, :yunits => :fraction)
       size = KML::Size.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
       screen_overlay = KML::ScreenOverlay.new(icon, overlay_xy, screen_xy, size, :visibility => options[:visibility])
-      KMZ.new(KML::Folder.hide_children(screen_overlay, options))
+      KMZ.new(KML::Folder.new(screen_overlay, KML::StyleUrl.new(stock.check_hide_children_style.url), options))
     end
 
     def stock
       stock = OpenStruct.new
       stock.kmz = KMZ.new
+      # folder styles
+      list_style = KML::ListStyle.new(:listItemType => :radioFolder)
+      stock.radio_folder_style = KML::Style.new(list_style)
+      stock.kmz.merge_roots(stock.radio_folder_style)
+      list_style = KML::ListStyle.new(:listItemType => :checkHideChildren)
+      stock.check_hide_children_style = KML::Style.new(list_style)
+      stock.kmz.merge_roots(stock.check_hide_children_style)
       # pixel
       pixel = Magick::Image.new(1, 1) do |image|
         image.background_color = "transparent"
@@ -488,16 +477,16 @@ class IGC
     kmz
   end
 
-  def make_monochromatic_track_log(color, width, altitude_mode, folder_options = {})
+  def make_monochromatic_track_log(hints, color, width, altitude_mode, folder_options = {})
     style = KML::Style.new(KML::LineStyle.new(color, :width => width))
     line_string = KML::LineString.new(:coordinates => @fixes, :altitudeMode => altitude_mode)
     placemark = KML::Placemark.new(style, line_string)
-    KMZ.new(KML::Folder.hide_children(placemark, folder_options))
+    KMZ.new(KML::Folder.new(placemark, KML::StyleUrl.new(hints.stock.check_hide_children_style.url), folder_options))
   end
 
   def make_colored_track_log(hints, values, scale, folder_options = {})
     name = KML::Name.new("Coloured by #{scale.title}")
-    folder = KML::Folder.hide_children(name, folder_options)
+    folder = KML::Folder.new(name, KML::StyleUrl.new(hints.stock.check_hide_children_style.url), folder_options)
     styles = scale.pixels.collect do |pixel|
       KML::Style.new(KML::LineStyle.new(KML::Color.pixel(pixel), :width => hints.width))
     end
@@ -522,19 +511,19 @@ class IGC
   end
 
   def track_log_folder(hints)
-    kmz = KMZ.new(KML::Folder.radio(:name => "Track log", :open => 1))
+    kmz = KMZ.new(KML::Folder.new(:name => "Track log", :open => 1, :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.invisible_none_folder)
     kmz.merge(make_colored_track_log(hints, @fixes.collect(&:alt), hints.scales.altitude))
     kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
     kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
-    kmz.merge(make_monochromatic_track_log(hints.color, hints.width, :absolute, :name => "Solid color", :visibility => 0))
+    kmz.merge(make_monochromatic_track_log(hints, hints.color, hints.width, :absolute, :name => "Solid color", :visibility => 0))
   end
 
   def shadow_folder(hints)
-    kmz = KMZ.new(KML::Folder.radio(:name => "Shadow", :open => 1))
+    kmz = KMZ.new(KML::Folder.new(:name => "Shadow", :open => 1, :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.invisible_none_folder)
-    kmz.merge(make_monochromatic_track_log(KML::Color.color("black"), 1, nil, :name => "Normal", :visibility => 1))
-    kmz.merge(make_monochromatic_track_log(hints.color, hints.width, nil, :name => "Solid color", :visibility => 0))
+    kmz.merge(make_monochromatic_track_log(hints, KML::Color.color("black"), 1, nil, :name => "Normal", :visibility => 1))
+    kmz.merge(make_monochromatic_track_log(hints, hints.color, hints.width, nil, :name => "Solid color", :visibility => 0))
   end
 
   def photos_folder(hints)
@@ -560,7 +549,7 @@ class IGC
     end
     folders = {}
     [Extreme::Maximum, Extreme::Minimum].each do |type|
-      folders[type] = KML::Folder.hide_children(:name => type.to_s.sub(/\A.*::(Max|Min)imum/) { "#{$1}ima" }, :visibility => 0)
+      folders[type] = KML::Folder.new(:name => type.to_s.sub(/\A.*::(Max|Min)imum/) { "#{$1}ima" }, :visibility => 0, :styleUrl => hints.stock.check_hide_children_style.url)
     end
     @alt_extremes.each do |extreme|
       folders[extreme.class].add(extreme.fix.to_kml(hints, :alt, {:altitudeMode => :absolute}, :styleUrl => styles[hints.scales.altitude.discretize(extreme.fix.alt)].url))
@@ -570,7 +559,7 @@ class IGC
   end
 
   def thermals_and_glides_folder(hints)
-    folder = KML::Folder.new(:name => "Thermals and glides", :visibility => 0)
+    folder = KML::Folder.new(:name => "Thermals and glides", :visibility => 0, :styleUrl => hints.stock.check_hide_children_style.url)
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(KML::Color.new("ff0033ff"), :scale => LABEL_SCALES[2])
     line_style = KML::LineStyle.new(KML::Color.new("880033ff"), :width => 4)
@@ -627,14 +616,14 @@ class IGC
       rows << ["Accumulated altitude gain", hints.units[:altitude][sum_alt_gain]]
       rows << ["Accumulated altitude loss", hints.units[:altitude][sum_alt_loss]]
       description = KML::Description.new(KML::CData.new(rows.to_html_table))
-      placemark = KML::Placemark.new(multi_geometry, description, KML::Snippet.new, :styleUrl => style.url, :name => name, :visibility => 0)
+      placemark = KML::Placemark.new(multi_geometry, description, KML::Snippet.new, :styleUrl => style.url, :name => name, :visibility => 1)
       folder.add(placemark)
     end
     KMZ.new(folder, :roots => [thermal_style, glide_style])
   end
 
   def make_time_marks_folder(hints, periods)
-    folder = KML::Folder.hide_children(:name => "#{periods[-1].period / 60} minute", :visibility => 0)
+    folder = KML::Folder.new(:name => "#{periods[-1].period / 60} minute", :visibility => 0, :styleUrl => hints.stock.check_hide_children_style.url)
     folder.add(@fixes[0].to_kml(hints, :time, {:altitudeMode => :absolute}, *periods[0].children))
     time = @fixes[0].time
     min_period = periods[-1].period
@@ -656,7 +645,7 @@ class IGC
   end
 
   def time_marks_folder(hints)
-    folder = KML::Folder.radio(:name => "Time marks")
+    folder = KML::Folder.new(:name => "Time marks", :styleUrl => hints.stock.radio_folder_style.url)
     styles = []
     period_struct = Struct.new(:period, :children)
     periods = [[3600, 27, 0], [1800, 27, 0], [900, 26, 1], [300, 25, 2], [60, 24, 3]].collect do |period, icon, label_scale_index|
@@ -709,7 +698,7 @@ class IGC
 
   def make_graph(hints, values, scale, folder_options = {})
     name = KML::Name.new(scale.title.capitalize)
-    folder = KML::Folder.hide_children(name, folder_options)
+    folder = KML::Folder.new(name, KML::StyleUrl.new(hints.stock.check_hide_children_style.url), folder_options)
     image = scale.to_graph_image(hints, @times, values)
     image.set_channel_depth(Magick::AllChannels, 8)
     image.format = "png"
@@ -724,7 +713,7 @@ class IGC
   end
 
   def graphs_folder(hints)
-    kmz = KMZ.new(KML::Folder.radio(:name => "Graphs"))
+    kmz = KMZ.new(KML::Folder.new(:name => "Graphs", :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.visible_none_folder)
     kmz.merge(make_graph(hints, @fixes.collect(&:alt), hints.scales.altitude, :visibility => 0))
     kmz.merge(make_graph(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))

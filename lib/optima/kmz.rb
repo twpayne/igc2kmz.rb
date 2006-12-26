@@ -37,7 +37,7 @@ class Optimum
       rows << ["#{@names[0]} - #{@names[-1]}", hints.units[:distance][@fixes[0].distance_to(@fixes[-1])]]
     end
     description = KML::Description.new(KML::CData.new(rows.to_html_table))
-    folder = KML::Folder.hide_children(KML::Name.new(name), description, KML::Snippet.new, folder_options)
+    folder = KML::Folder.new(KML::Name.new(name), description, KML::Snippet.new, KML::StyleUrl.new(hints.stock.check_hide_children_style.url), folder_options)
     if @circuit
       coords = @fixes[1...-1]
       coords << @fixes[1] if @fixes.length > 4
@@ -63,7 +63,7 @@ end
 class Optima
 
   def to_kmz(hints, options = {})
-    kmz = KMZ.new(KML::Folder.radio(KML::Name.new("Cross country"), options))
+    kmz = KMZ.new(KML::Folder.new(KML::Name.new("Cross country"), KML::StyleUrl.new(hints.stock.radio_folder_style.url), options))
     kmz.merge(hints.stock.invisible_none_folder)
     best_optimum = @optima.sort_by(&:score)[-1]
     @optima.each do |optimum|
