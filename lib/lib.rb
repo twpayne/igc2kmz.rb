@@ -13,14 +13,6 @@ end
 
 module Enumerable
 
-  def bounds(min = nil, max = nil)
-    each do |element|
-      min = element if min.nil? or element < min
-      max = element if max.nil? or element > max
-    end
-    min.nil? ? nil : min..max
-  end
-
   def collect_with_index
     result = []
     each_with_index do |element, index|

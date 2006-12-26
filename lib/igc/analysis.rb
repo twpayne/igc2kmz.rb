@@ -1,23 +1,8 @@
+require "bounds"
 require "enumerator"
 require "igc"
 
 class IGC
-
-  class Bounds
-
-    attr_accessor :lat, :lon, :alt, :time, :speed, :climb, :glide
-
-    def merge(other)
-      @lat = @lat ? [@lat.first, other.lat.first].min..[@lat.last, other.lat.last].max : other.lat
-      @lon = @lon ? [@lon.first, other.lon.first].min..[@lon.last, other.lon.last].max : other.lon
-      @alt = @alt ? [@alt.first, other.alt.first].min..[@alt.last, other.alt.last].max : other.alt
-      @time = @time ? [@time.first, other.time.first].min..[@time.last, other.time.last].max : other.time
-      @speed = @speed ? [@speed.first, other.speed.first].min..[@speed.last, other.speed.last].max : other.speed
-      @climb = @climb ? [@climb.first, other.climb.first].min..[@climb.last, other.climb.last].max : other.climb
-      @glide = @glide ? [@glide.first, other.glide.first].min..[@glide.last, other.glide.last].max : other.glide
-    end
-
-  end
 
   class Average
 
