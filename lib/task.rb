@@ -1,3 +1,4 @@
+require "bounds"
 require "coord"
 require "enumerator"
 require "lib"
@@ -18,6 +19,10 @@ class Task
       @name = name
     end
 
+    def bounds
+      Bounds.new(:lat => @lat..@lat, :lon => @lon..@lon, :alt => @alt..@alt)
+    end
+
     def intersect?(fix0, fix1)
       false
     end
@@ -27,6 +32,11 @@ class Task
   class Circle < Point
 
     DEFAULT_RADIUS = nil 
+
+    def bounds
+      Bounds.new(:lat => destination_at(Math::PI, radius).lat..destination_at(0.0, radius).lat,
+                 :lon => destination_at(1.5 * Math::PI, radius).lon..destination_at(0.5 * Math::PI, radius).lon)
+    end
 
     def initialize(lat, lon, alt, name, radius)
       super(lat, lon, alt, name)
@@ -99,6 +109,11 @@ class Task
       @right = destination_at(@axis + Math::PI / 2.0, @length / 2.0)
     end
 
+    def bounds
+      Bounds.new(:lat => [@left, @right].collect(&:lat).bounds,
+                 :lon => [@left, @right].collect(&:lon).bounds)
+    end
+
     def intersect?(fix0, fix1)
       n1 = (fix1.lon - fix0.lon) * (@left.lat - fix0.lat) - (fix1.lat - fix0.lat) * (@left.lon - fix0.lon)
       return nil if n1.zero?
@@ -128,6 +143,14 @@ class Task
       @distance += object0.distance_to(object1)
       break if object1.is_a?(GoalCircle) or object1.is_a?(GoalLine)
     end
+  end
+
+  def bounds
+    result = Bounds.new
+    @course.each do |object|
+      result.merge(object.bounds)
+    end
+    result
   end
 
 end
