@@ -8,7 +8,6 @@
 
 static VALUE rb_cOptima;
 static VALUE rb_cOptimum;
-static VALUE sym_open;
 static VALUE sym_frcfd;
 static VALUE sym_ukxcl;
 static VALUE id_fixes;
@@ -637,7 +636,7 @@ rb_Optima_new_from_fixes_open(VALUE rb_fixes, VALUE rb_complexity)
 		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 2, indexes, names, "Open distance", 1.0, 0));
 	}
 	track_delete(track);
-	return rb_funcall(rb_cOptima, id_new, 3, rb_optima, sym_open, rb_complexity);
+	return rb_funcall(rb_cOptima, id_new, 3, rb_optima, Qnil, rb_complexity);
 }
 
 static VALUE
@@ -731,7 +730,7 @@ rb_Optima_new_from_igc(VALUE rb_self, VALUE rb_igc, VALUE rb_league, VALUE rb_co
 {
 	rb_self = rb_self;
 	VALUE rb_fixes = rb_funcall(rb_igc, id_fixes, 0);
-	if (rb_league == sym_open)
+	if (rb_league == Qnil)
 		return rb_Optima_new_from_fixes_open(rb_fixes, rb_complexity);
 	else if (rb_league == sym_frcfd)
 		return rb_Optima_new_from_fixes_frcfd(rb_fixes, rb_complexity);
@@ -746,11 +745,10 @@ Init_coptima(void)
 {
 	rb_cOptima = rb_const_get(rb_cObject, rb_intern("Optima"));
 	rb_cOptimum = rb_const_get(rb_cObject, rb_intern("Optimum"));
-	sym_open = ID2SYM(rb_intern("open"));
 	sym_frcfd = ID2SYM(rb_intern("frcfd"));
 	sym_ukxcl = ID2SYM(rb_intern("ukxcl"));
     VALUE rb_LEAGUES = rb_hash_new();
-    rb_hash_aset(rb_LEAGUES, sym_open, rb_str_new2("Open distance"));
+    rb_hash_aset(rb_LEAGUES, Qnil, rb_str_new2("Open distance"));
     rb_hash_aset(rb_LEAGUES, sym_ukxcl, rb_str_new2("XC league (UK)"));
     rb_hash_aset(rb_LEAGUES, sym_frcfd, rb_str_new2("Coupe f\xc3\xa9""d\xc3\xa9rale de distance (France)"));
 	rb_define_const(rb_cOptima, "LEAGUES", rb_LEAGUES);

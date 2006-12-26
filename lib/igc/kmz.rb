@@ -383,7 +383,6 @@ class IGC
       hints = OpenStruct.new
       hints.color = KML::Color.color("red")
       hints.complexity = 4
-      hints.league = :open
       hints.photo_tz_offset = 0
       hints.photos = []
       hints.stock = stock
@@ -407,7 +406,7 @@ class IGC
     end
     if hints.optima
       optimum = hints.optima.optima.sort_by(&:score)[-1]
-      rows << ["Cross country league", Optima::LEAGUES[hints.optima.league]]
+      rows << ["Cross country league", Optima::LEAGUES[hints.optima.league]] if hints.optima.league
       rows << ["Cross country type", optimum.flight_type]
       rows << ["Cross country distance", "%s (%.1f points)" % [hints.units[:distance][optimum.distance], optimum.score]]
       rows << ["Time on task", (optimum.fixes[-1].time - optimum.fixes[0].time).to_duration]
