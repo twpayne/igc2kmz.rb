@@ -19,3 +19,6 @@ ext/coptima/coptima.so: ext/coptima/Makefile ext/coptima/coptima.c
 
 ext/coptima/Makefile: ext/coptima/extconf.rb
 	cd ext/coptima && ruby extconf.rb
+
+check:
+	ruby test/test_lib.rb
