@@ -9,6 +9,7 @@ module Units
       @unit = unit
       @format = format
       @multiplier = multiplier
+      @offset = format[-1, 1] == "d" ? 0.5 : 0
     end
 
     def [](value)
@@ -16,7 +17,7 @@ module Units
     end
 
     def convert(value)
-      @format % (@multiplier * value)
+      @format % (@multiplier * value + @offset)
     end
 
   end
