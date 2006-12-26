@@ -69,7 +69,7 @@ def main(argv)
     end
   end
   raise unless igc
-  igc.to_kmz(hints).write(output or "#{igc.filename}.kmz")
+  igc.to_kmz(hints).write(output || "#{igc.filename}.kmz")
 end
 
 main(ARGV) if $0 == __FILE__
