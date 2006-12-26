@@ -1,0 +1,21 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "igc"
+require "igc/analysis"
+
+def main(argv)
+  argv.each do |arg|
+    File.open(arg) do |file|
+      igc = IGC.new(file)
+      unless igc.unknowns.empty?
+        puts("# #{arg}")
+        puts(igc.unknowns.join("\n"))
+      end
+      igc.analyse
+      puts(igc.bounds.to_yaml)
+    end
+  end
+end
+
+main(ARGV) if $0 == __FILE__
