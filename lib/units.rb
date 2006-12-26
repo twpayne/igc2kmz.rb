@@ -9,7 +9,6 @@ module Units
       @unit = unit
       @format = format
       @multiplier = multiplier
-      @offset = format[-1, 1] == "d" ? 0.5 : 0
     end
 
     def [](value)
@@ -17,7 +16,18 @@ module Units
     end
 
     def convert(value)
-      @format % (@multiplier * value + @offset)
+      case @format
+      when /d\z/ then @format % (@multiplier * value).round
+      when /f\z/ then @format % (@multiplier * value)
+      else raise
+      end
+    end
+
+    def integer_unit
+      case @format
+      when /d\z/ then self
+      else Unit.new(@unit, "%d", @multiplier)
+      end
     end
 
   end

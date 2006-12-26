@@ -95,13 +95,13 @@ module Magick
 
     def outline(&block)
       mask = black_threshold(Magick::MaxRGB + 1)
-      image = Image.new(columns + 2, rows + 2, &block)
-      (0..2).each do |i|
-        (0..2).each do |j|
+      image = Image.new(columns, rows, &block)
+      (-1..1).each do |i|
+        (-1..1).each do |j|
           image.composite!(mask, i, j, Magick::MultiplyCompositeOp)
         end
       end
-      image.composite!(self, 1, 1, Magick::OverCompositeOp)
+      image.composite!(self, 0, 0, Magick::OverCompositeOp)
       image
     end
 
@@ -111,12 +111,53 @@ end
 
 class Scale
 
+  class Border
+
+    attr_reader :top
+    attr_reader :right
+    attr_reader :bottom
+    attr_reader :left
+
+    def initialize(*widths)
+      case widths.length
+      when 0
+        @top = @right = @bottom = @left = 0
+      when 1
+        @top = @right = @bottom = @left = widths[0]
+      when 2
+        @top = @bottom = widths[0]
+        @right = @left = widths[1]
+      when 3
+        @top    = widths[0]
+        @right  = widths[1]
+        @left   = widths[1]
+        @bottom = widths[2]
+      when 4
+        @top    = widths[0]
+        @right  = widths[1]
+        @bottom = widths[2]
+        @left   = widths[3]
+      else
+        raise ArgumentError
+      end
+    end
+
+    def height
+      @top + @bottom
+    end
+
+    def width
+      @right + @left
+    end
+
+  end
+
   attr_reader :title
 
-  def initialize(title, range, units, gradient = Gradient::Default)
+  def initialize(title, range, unit, gradient = Gradient::Default)
     @title = title
     @range = range
-    @units = units
+    @unit = unit
     @gradient = gradient
   end
 
@@ -142,47 +183,59 @@ class Scale
     (steps * (value - @range.first) / (@range.last - @range.first)).round.constrain(0, steps - 1)
   end
 
-  def make_step(n)
-    width = @units.multiplier * (@range.last - @range.first)
-    steps = [0.25, 0.5, 1.0]
-    i = steps.length * (Math.log10(width).to_i - 1)
-    step = steps[i % steps.length] * 10 ** (i / steps.length)
-    while width / step > n
+  def make_step(n, steps = [[0.5, 5], [1.0, 5]])
+    width = @unit.multiplier.to_f * (@range.last - @range.first) / n
+    i = steps.length * (Math.log10(width).floor - 1)
+    step = steps[i % steps.length][0] * 10.0 ** (i / steps.length)
+    while width / step > 1.0
       i += 1
-      step = steps[i % steps.length] * 10 ** (i / steps.length)
+      step = steps[i % steps.length][0] * 10.0 ** (i / steps.length)
     end
-    step0 = steps[(i - 1) % steps.length] * 10 ** ((i - 1) / steps.length)
-    (n * step / width < width / (n * step0) ? step : step0) / @units.multiplier
+    i0 = i - 1
+    step0 = steps[i0 % steps.length][0] * 10 ** (i0 / steps.length)
+    if [step / width, 1.25].min < width / step0
+      [step / @unit.multiplier, steps[i % steps.length][1]]
+    else
+      [step0 / @unit.multiplier, steps[i0 % steps.length][1]]
+    end
   end
 
   def make_time_step(width, n)
-    steps = [1, 15, 30, 60, 5 * 60, 15 * 60, 30 * 60, 60 * 60, 3 * 60 * 60, 6 * 60 * 60, 12 * 60 * 60]
+    steps = [[1, 1], [15, 3], [30, 3], [60, 4], [5 * 60, 5], [15 * 60, 3], [30 * 60, 3], [60 * 60, 4], [3 * 60 * 60, 3], [6 * 60 * 60, 6], [12 * 60 * 60, 4]]
     i = 0
-    i += 1 while i < steps.length and width / steps[i] > n
+    i += 1 while i < steps.length and width / steps[i][0] > n
     return steps[0] if i.zero?
     return steps[-1] if i == steps.length
-    n * steps[i] / width < width / (n * steps[i - 1]) ? steps[i] : steps[i - 1]
+    n * steps[i][0] / width < width / (n * steps[i - 1][0]) ? steps[i] : steps[i - 1]
   end
 
   def to_image
-    border = 8
-    height = 256
-    width = 64
-    Magick::RVG.new(width + 2 * border, height + 2 * border) do |canvas|
-      canvas.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none")
-      step = make_step(8)
-      value = step * (@range.first / step).ceil
-      while value <= @range.last
-        y = (height * (1.0 - (value - @range.first) / (@range.last - @range.first))).round + border
-        color = color_of(value)
-        canvas.line(border, y, 8 + border, y).styles(:stroke => color)
-        canvas.text(12 + border, y, @units[value]).d(0, 4).styles(:fill => color)
-        value += step
-      end
-      (0...height).each do |y|
-        value = @range.last - (y + 0.5) * (@range.last - @range.first) / height
-        color = color_of(value)
-        canvas.line(border, border + y, border + 4, border + y).styles(:stroke => color)
+    border = Border.new(8)
+    width, height = 64, 256
+    Magick::RVG.new(width + border.width, height + border.height) do |canvas|
+      canvas.g.translate(border.left, border.top) do |scale|
+        scale.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none")
+        step, n = make_step(7)
+        unit = step < 1.0 ? @unit : @unit.integer_unit
+        i = (n * @range.first / step).ceil
+        value = step * i / n
+        while value < @range.last
+          y = (height * (1.0 - (value - @range.first) / (@range.last - @range.first))).round
+          color = color_of(value)
+          if i % n == 0
+            scale.line(0, y, 8, y).styles(:stroke => color)
+            scale.text(12, y, unit[value]).d(0, 4).styles(:fill => color)
+          else
+            scale.line(0, y, 6, y).styles(:stroke => color)
+          end
+          i += 1
+          value = step * i / n
+        end
+        (0...height).each do |y|
+          value = @range.last - (y + 0.5) * (@range.last - @range.first) / height
+          color = color_of(value)
+          scale.line(0, y, 4, y).styles(:stroke => color)
+        end
       end
     end.draw.outline do
       self.background_color = "transparent"
@@ -190,84 +243,61 @@ class Scale
   end
 
   def to_graph_image(hints, times, values)
-    border = 8
-    top_border = 16
-    right_border = 8
-    bottom_border = 16
-    left_border = 32
-    height = 200
-    width = 600
-    tstep = make_time_step(times[-1] - times[0], 8)
-    vstep = make_step(4)
-    v0 = vstep * (@range.first / vstep).floor
-    v1 = vstep * (@range.last / vstep).ceil
-    Magick::RVG.new(left_border + width + right_border, top_border + height + bottom_border) do |canvas|
-      canvas.g.translate(left_border, top_border + height) do |graph|
+    border = Border.new(16, 4, 16, 36)
+    width, height = 640 - border.width, 240 - border.height
+    tstep, tdivisions = make_time_step(times[-1] - times[0], 6)
+    time_format = tstep < 60 ? "%H:%M:%S" : "%H:%M"
+    xticks = (((tdivisions * times[0] + tstep - 1) / tstep)..(tdivisions * times[-1] / tstep)).collect do |i|
+      t = tstep * i / tdivisions
+      label = (i % tdivisions).zero? ? (Time.at(t).utc + hints.tz_offset).strftime(time_format) : nil
+      [(width.to_f * (t - times[0]) / (times[-1] - times[0])).round, label]
+    end
+    vstep, vdivisions = make_step(6)
+    vunit = vstep < 1.0 ? @unit : @unit.integer_unit
+    vmin = vstep * (vdivisions * @range.first / vstep).floor / vdivisions
+    vmax = vstep * (vdivisions * @range.last / vstep).ceil / vdivisions
+    yticks = ((vdivisions * @range.first / vstep).floor..(vdivisions * @range.last / vstep).ceil).collect do |i|
+      v = vstep * i / vdivisions
+      label = (i % vdivisions).zero? ? vunit.convert(v) : nil
+      [(height.to_f * (v - vmin) / (vmax - vmin)).round, label]
+    end
+    graph_image = Magick::RVG.new(width + border.width, height + border.height) do |canvas|
+      canvas.g.translate(border.left, border.top + height).scale(1, -1) do |graph|
         graph.styles(:stroke => "black")
-        graph.rect(width, height, 0, -height).styles(:fill => "white", :stroke => "none")
-        graph.g.styles(:stroke => "#eee") do |minor_grid|
-          t = tstep * (times[0].to_f / tstep).ceil + tstep / 2.0
-          while t <= times[-1]
-            x = (width.to_f * (t - times[0]) / (times[-1] - times[0])).round
-            minor_grid.line(x, 0, x, -height)
-            t += tstep
+        graph.rect(width, height).styles(:fill => "white", :stroke => "none")
+        graph.g.styles(:stroke => "#ddd") do |minor_grid|
+          xticks.each { |x, label| minor_grid.line(x, 0, x, height) unless label }
+          yticks.each { |y, label| minor_grid.line(0, y, width, y) unless label }
+        end
+        graph.g.styles(:stroke => "#bbb") do |major_grid|
+          xticks.each { |x, label| major_grid.line(x, 0, x, height) if label }
+          yticks.each { |y, label| major_grid.line(0, y, width, y) if label }
+        end
+        xticks.each { |x, label| graph.line(x, 0, x, label ? -4 : -2) }
+        yticks.each { |y, label| graph.line(0, y, label ? -4 : -2, y) }
+        graph.rect(width, height).styles(:fill => "none")
+        xs = times.collect { |t| width.to_f * (t - times[0]) / (times[-1] - times[0]) }
+        ys = values.collect { |v| height.to_f * (v - vmin) / (vmax - vmin) }
+        graph.polyline(xs, ys).styles(:fill => "none")
+      end
+    end.draw
+    Magick::RVG.new(width + border.width, height + border.height) do |canvas|
+      canvas.g.translate(border.left, border.top + height) do |labels|
+        labels.styles(:fill => "white", :font_family => "Verdana", :font_weight => "bold", :stroke => "none")
+        labels.g.styles(:font_size => 9) do |axes|
+          axes.g.styles(:text_anchor => "middle") do |xaxis|
+            xticks.each { |x, label| xaxis.text(x, 4, label).d(0, 9) if label }
           end
-          v = vstep * (v0 / vstep).ceil + vstep / 2.0
-          while v <= v1
-            y = (-height.to_f * (v - v0) / (v1 - v0)).round
-            minor_grid.line(0, y, width, y)
-            v += vstep
+          axes.g.styles(:text_anchor => "end") do |yaxis|
+            yticks.each { |y, label| yaxis.text(-4, -y, label).d(0, 4) if label }
           end
         end
-        graph.g.styles(:stroke => "#ddd") do |major_grid|
-          t = tstep * (times[0].to_f / tstep).ceil
-          while t <= times[-1]
-            x = (width.to_f * (t - times[0]) / (times[-1] - times[0])).round
-            major_grid.line(x, 0, x, -height)
-            t += tstep
-          end
-          v = vstep * (v0 / vstep).ceil
-          while v <= v1
-            y = (-height.to_f * (v - v0) / (v1 - v0)).round
-            major_grid.line(0, y, width, y)
-            v += vstep
-          end
-        end
-        graph.g.styles(:fill => "none") do |outline|
-          outline.line(0, 0, 0, -height)
-          outline.line(0, 0, width, 0)
-        end
-        graph.text(0, -height - 4, "#{@title.capitalize} (#{@units.unit})").styles(:fill => "white", :font_family => "Verdana", :font_size => 11, :font_weight => "bold", :stroke => "none", :text_anchor => "start")
-        graph.g.styles(:fill => "white", :font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none") do |axes|
-          t = (tstep * (times[0].to_f / tstep).ceil).to_i
-          format = tstep < 60 ? "%H:%M:%S" : "%H:%M"
-          while t <= times[-1]
-            x = (width.to_f * (t - times[0]) / (times[-1] - times[0])).round
-            axes.line(x, 0, x, -2).styles(:stroke => "black")
-            axes.text(x, 4, (Time.at(t).utc + hints.tz_offset).strftime(format)).styles(:text_anchor => "middle").d(0, 9)
-            t += tstep
-          end
-          v = vstep * (v0 / vstep).ceil
-          while v <= v1
-            y = (-height.to_f * (v - v0) / (v1 - v0)).round
-            axes.line(0, y, 2, y).styles(:stroke => "black")
-            axes.text(-4, y, @units.convert(v)).styles(:text_anchor => "end").d(0, 4)
-            v += vstep
-          end
-        end
-        graph.g.styles(:fill => "none") do |line|
-          xs = times.collect do |x|
-            width.to_f * (x - times[0]) / (times[-1] - times[0])
-          end
-          ys = values.collect do |y|
-            -height.to_f * (y - v0) / (v1 - v0)
-          end
-          line.polyline(xs, ys)
-        end
+        title = "#{@title.capitalize} (#{@unit.unit})"
+        labels.text(0, -height - 4, title).styles(:font_size => 11, :text_anchor => "start")
       end
     end.draw.outline do
       self.background_color = "transparent"
-    end
+    end.composite!(graph_image, 0, 0, Magick::OverCompositeOp)
   end
 
 end
