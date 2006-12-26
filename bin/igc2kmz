@@ -9,7 +9,6 @@ require "rexml/document"
 require "sponsor"
 require "task/gpx"
 require "units"
-require "uri"
 
 SPONSORS = {
   :gradient => Sponsor.new("Gradient",    "http://www.gradient.cx/",    "images/gradient.png"),
