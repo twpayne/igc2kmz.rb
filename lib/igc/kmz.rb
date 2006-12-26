@@ -522,7 +522,7 @@ class IGC
   end
 
   def shadow_folder(hints)
-    kmz = KMZ.new(KML::Folder.radio(:name => "Shadow"))
+    kmz = KMZ.new(KML::Folder.radio(:name => "Shadow", :open => 1))
     kmz.merge(hints.stock.invisible_none_folder)
     kmz.merge(make_monochromatic_track_log(KML::Color.color("black"), 1, nil, :name => "Normal", :visibility => 1))
     kmz.merge(make_monochromatic_track_log(hints.color, hints.width, nil, :name => "Solid color", :visibility => 0))
@@ -665,7 +665,7 @@ class IGC
   end
 
   def optima_folder(hints)
-    hints.optima.to_kmz(hints)
+    hints.optima.to_kmz(hints, :open => 1)
   end
 
   def task_marks_folder(hints)
@@ -693,7 +693,7 @@ class IGC
   end
 
   def competition_folder(hints)
-    kmz = KMZ.new(KML::Folder.new(:name => "Competition"))
+    kmz = KMZ.new(KML::Folder.new(:name => "Competition", :open => 1))
     kmz.merge(hints.task.to_kmz(hints))
     kmz.merge(task_marks_folder(hints))
   end
