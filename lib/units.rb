@@ -27,7 +27,7 @@ module Units
       :altitude => Unit.new("m", "%d", 1),
       :climb    => Unit.new("m/s", "%+.1f", 1),
       :distance => Unit.new("km", "%.1f", 1.0 / 1000.0),
-      :speed    => Unit.new("km/h", "%.1f",  3.6),
+      :speed    => Unit.new("km/h", "%.1f", 3.6),
     },
     :imperial => {
       :altitude => Unit.new("ft", "%d", 1.0 / 0.3048),
