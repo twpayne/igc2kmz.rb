@@ -200,6 +200,19 @@ class Scale
     end
   end
 
+  def make_scale_step(n)
+    width = @unit.multiplier * (@range.last - @range.first)
+    steps = [0.25, 0.5, 1.0]
+    i = steps.length * (Math.log10(width).to_i - 1)
+    step = steps[i % steps.length] * 10 ** (i / steps.length)
+    while width / step > n
+      i += 1
+      step = steps[i % steps.length] * 10 ** (i / steps.length)
+    end
+    step0 = steps[(i - 1) % steps.length] * 10 ** ((i - 1) / steps.length)
+    (n * step / width < width / (n * step0) ? step : step0) / @unit.multiplier
+  end
+
   def make_time_step(width, n)
     steps = [[1, 1], [15, 3], [30, 3], [60, 4], [5 * 60, 5], [15 * 60, 3], [30 * 60, 3], [60 * 60, 4], [3 * 60 * 60, 3], [6 * 60 * 60, 6], [12 * 60 * 60, 4]]
     i = 0
@@ -215,21 +228,17 @@ class Scale
     Magick::RVG.new(width + border.width, height + border.height) do |canvas|
       canvas.g.translate(border.left, border.top) do |scale|
         scale.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none")
-        step, n = make_step(7)
+        step = make_scale_step(7)
         unit = step < 1.0 ? @unit : @unit.integer_unit
-        i = (n * @range.first / step).ceil
-        value = step * i / n
+        i = (@range.first / step).ceil
+        value = step * i
         while value < @range.last
           y = (height * (1.0 - (value - @range.first) / (@range.last - @range.first))).round
           color = color_of(value)
-          if i % n == 0
-            scale.line(0, y, 8, y).styles(:stroke => color)
-            scale.text(12, y, unit[value]).d(0, 4).styles(:fill => color)
-          else
-            scale.line(0, y, 6, y).styles(:stroke => color)
-          end
+          scale.line(0, y, 8, y).styles(:stroke => color)
+          scale.text(12, y, unit[value]).d(0, 4).styles(:fill => color)
           i += 1
-          value = step * i / n
+          value = step * i
         end
         (0...height).each do |y|
           value = @range.last - (y + 0.5) * (@range.last - @range.first) / height
