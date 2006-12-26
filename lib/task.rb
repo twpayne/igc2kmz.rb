@@ -111,14 +111,14 @@ class Task
 
   end
 
-  attr_reader :competition_name
+  attr_reader :competition
   attr_reader :number
   attr_reader :type
   attr_reader :distance
   attr_reader :course
 
-  def initialize(competition_name, number, type, course)
-    @competition_name = competition_name
+  def initialize(competition, number, type, course)
+    @competition = competition
     @number = number
     @type = type
     @course = course

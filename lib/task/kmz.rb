@@ -113,7 +113,7 @@ class Task
   end
 
   def to_kmz(hints, options = {})
-    name = "%s task %d" % [@competition_name, @number]
+    name = "%s task %d" % [@competition, @number]
     snippet = "%s %s" % [hints.units[:distance][@distance], Task::TYPES[@type]]
     folder = KML::Folder.new(KML::Name.new(name), KML::Snippet.new(snippet), KML::StyleUrl.new(hints.stock.check_hide_children_style.url), options)
     object0 = nil

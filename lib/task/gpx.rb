@@ -158,7 +158,7 @@ class Task
 
   def to_gpx
     rte = GPX::Rte.new
-    rte.add(GPX::Name.new(@competition_name)) if @competition_name
+    rte.add(GPX::Name.new(@competition)) if @competition
     rte.add(GPX::Number.new(@number)) if @number
     rte.add(GPX::Type.new(@type)) if @type
     @course.collect(&:to_gpx).each(&rte.method(:add))
@@ -168,7 +168,7 @@ class Task
   class << self
 
     def new_from_gpx(rte)
-      competition_name = rte.elements["name"].default { text }
+      competition = rte.elements["name"].default { text }
       number = rte.elements["number"].default { text.to_i }
       type = rte.elements["type"].default { text.intern }
       course = []
@@ -182,7 +182,7 @@ class Task
         when "goalline"            then course << GoalLine.new_from_gpx(rtept)
         end
       end
-      new(competition_name, number, type, course)
+      new(competition, number, type, course)
     end
 
   end

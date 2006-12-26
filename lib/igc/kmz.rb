@@ -399,7 +399,7 @@ class IGC
     rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
     if hints.task
       task = hints.task
-      rows << ["Competition","%s task %d" %  [task.competition_name, task.number]]
+      rows << ["Competition","%s task %d" % [task.competition, task.number]]
       rows << ["Task", "%s %s" % [hints.units[:distance][task.distance], Task::TYPES[task.type]]]
     end
     if hints.optima
@@ -459,7 +459,7 @@ class IGC
     fields = []
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
     fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
-    fields << "#{hints.task.competition_name} task #{hints.task.number}" if hints.task
+    fields << "#{hints.task.competition} task #{hints.task.number}" if hints.task
     fields << @header[:site] if @header[:site]
     snippet = KML::Snippet.new(fields.join(", "))
     kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(@filename), KML::Open.new(1))
