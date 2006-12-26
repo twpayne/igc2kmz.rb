@@ -9,7 +9,7 @@ class Optimum
     name = (@multiplier.zero? ? "%s (%s)" : "%s (%s, %.1f points)") % [@flight_type, hints.units[:distance][distance], score]
     rows = []
     total = distance
-    rows << ["League", Optima::LEAGUES[hints.optima.league]]
+    rows << ["League", Optima::LEAGUES[hints.optima.league]] if hints.optima.league
     rows << ["Type", @flight_type]
     if @circuit
       if @fixes.length == 4
