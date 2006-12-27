@@ -1,6 +1,7 @@
 #include <ruby.h>
 #include <math.h>
 #include <stdio.h>
+#include <time.h>
 
 #define p(rb_value) rb_funcall(rb_mKernel, rb_intern("p"), 1, (rb_value))
 
@@ -14,6 +15,8 @@ static VALUE id_fixes;
 static VALUE id_lat;
 static VALUE id_lon;
 static VALUE id_new;
+static VALUE id_time;
+static VALUE id_to_i;
 
 typedef struct {
 	double cos_lat;
@@ -29,6 +32,7 @@ typedef struct {
 typedef struct {
 	int n;
 	fix_t *fixes;
+    time_t *times;
 	double *sigma_delta;
 	limit_t *before;
 	limit_t *after;
@@ -51,21 +55,6 @@ static inline int track_first_at_least(const track_t *track, int i, int begin, i
 static inline int track_last_at_least(const track_t *track, int i, int begin, int end, double bound) __attribute__ ((nonnull(1))) __attribute__ ((pure));
 static track_t *track_new(VALUE rb_fixes) __attribute__ ((malloc));
 void Init_coptima(void);
-
-static VALUE
-rb_optimum_new(VALUE rb_fixes, int n, int *indexes, const char *names[], const char *flight_type, double multiplier, int circuit)
-{
-	if (indexes[0] == -1)
-		return Qnil;
-	VALUE rb_fixes2 = rb_ary_new2(n);
-	VALUE rb_names = rb_ary_new2(n);
-	int i;
-	for (i = 0; i < n; ++i) {
-		rb_ary_push(rb_fixes2, RARRAY(rb_fixes)->ptr[indexes[i]]);
-		rb_ary_push(rb_names, rb_str_new2(names[i]));
-	}
-	return rb_funcall(rb_cOptimum, id_new, 5, rb_fixes2, rb_names, rb_str_new2(flight_type), rb_float_new(multiplier), circuit ? Qtrue : Qfalse);
-}
 
 static inline VALUE
 rb_ary_push_unless_nil(VALUE rb_self, VALUE rb_value)
@@ -277,6 +266,7 @@ track_new(VALUE rb_fixes)
 
 	/* Compute cos_lat, sin_lat and lon lookup tables */
 	track->fixes = ALLOC_N(fix_t, track->n);
+	track->times = ALLOC_N(time_t, track->n);
 	int i;
 	for (i = 0; i < track->n; ++i) {
 		VALUE rb_fix = RARRAY(rb_fixes)->ptr[i];
@@ -284,6 +274,7 @@ track_new(VALUE rb_fixes)
 		track->fixes[i].cos_lat = cos(lat);
 		track->fixes[i].sin_lat = sin(lat);
 		track->fixes[i].lon = NUM2DBL(rb_funcall(rb_fix, id_lon, 0));
+        track->times[i] = NUM2INT(rb_funcall(rb_funcall(rb_fix, id_time, 0), id_to_i, 0));
 	}
 
 	/* Compute max_delta and sigma_delta lookup table */
@@ -307,6 +298,7 @@ track_downsample(track_t *track, double threshold)
 	memset(result, 0, sizeof(track_t));
 
 	result->fixes = ALLOC_N(fix_t, track->n);
+	result->times = ALLOC_N(time_t, track->n);
 	result->max_delta = 0.0;
 	result->sigma_delta = ALLOC_N(double, track->n);
 	result->fixes[0] = track->fixes[0];
@@ -317,6 +309,7 @@ track_downsample(track_t *track, double threshold)
 		double delta = track_delta(track, i, j);
 		if (delta > threshold) {
 			result->fixes[result->n] = track->fixes[j];
+            result->times[result->n] = track->times[j];
 			result->sigma_delta[result->n] = result->sigma_delta[result->n - 1] + delta;
 			if (delta > result->max_delta)
 				result->max_delta = delta;
@@ -364,6 +357,7 @@ track_delete(track_t *track)
 {
 	if (track) {
 		xfree(track->fixes);
+		xfree(track->times);
 		xfree(track->sigma_delta);
 		xfree(track->before);
 		xfree(track->after);
@@ -373,10 +367,62 @@ track_delete(track_t *track)
 	}
 }
 
-static double
-track_open_distance(const track_t *track, double bound, int *indexes)
+static int
+track_time_to_index(const track_t *track, time_t time, int left, int right)
 {
-	indexes[0] = -1;
+    while (left <= right) {
+        int middle = (left + right) / 2;
+        if (track->times[middle] > time)
+            right = middle - 1;
+        else if (track->times[middle] == time)
+            return middle;
+        else
+            left = middle + 1;
+    }
+    return -1;
+}
+
+static void
+track_times_to_indexes(const track_t *track, int n, const time_t *times, int *indexes)
+{
+    int left = 0;
+    int right = track->n;
+    int i;
+    for (i = 0; i < n; ++i) {
+        indexes[i] = track_time_to_index(track, times[i], left, right);
+        left = indexes[i];
+    }
+}
+
+static void
+track_indexes_to_times(const track_t *track, int n, const int *indexes, time_t *times)
+{
+    int i;
+    for (i = 0; i < n; ++i)
+        times[i] = indexes[i] == -1 ? -1 : track->times[indexes[i]];
+}
+
+static VALUE
+track_rb_optimum_new(const track_t *track, VALUE rb_fixes, int n, time_t *times, const char *names[], const char *flight_type, double multiplier, int circuit)
+{
+	if (times[0] == -1)
+		return Qnil;
+    int indexes[n];
+    track_times_to_indexes(track, n, times, indexes);
+	VALUE rb_fixes2 = rb_ary_new2(n);
+	VALUE rb_names = rb_ary_new2(n);
+	int i;
+	for (i = 0; i < n; ++i) {
+		rb_ary_push(rb_fixes2, RARRAY(rb_fixes)->ptr[indexes[i]]);
+		rb_ary_push(rb_names, rb_str_new2(names[i]));
+	}
+	return rb_funcall(rb_cOptimum, id_new, 5, rb_fixes2, rb_names, rb_str_new2(flight_type), rb_float_new(multiplier), circuit ? Qtrue : Qfalse);
+}
+
+static double
+track_open_distance(const track_t *track, double bound, time_t *times)
+{
+    int indexes[2] = { -1, -1 };
 	int start;
 	for (start = 0; start < track->n - 1; ++start) {
 		int finish = track_furthest_from(track, start, start + 1, track->n, bound, &bound);
@@ -385,13 +431,14 @@ track_open_distance(const track_t *track, double bound, int *indexes)
 			indexes[1] = finish;
 		}
 	}
+    track_indexes_to_times(track, 2, indexes, times);
 	return bound;
 }
 
 static double
-track_open_distance_one_point(const track_t *track, double bound, int *indexes)
+track_open_distance_one_point(const track_t *track, double bound, time_t *times)
 {
-	indexes[0] = -1;
+    int indexes[3] = { -1, -1, -1 };
 	int b1;
 	for (b1 = 1; b1 < track->n - 1; ) {
 		double total = track->before[b1].distance + track->after[b1].distance;
@@ -405,13 +452,14 @@ track_open_distance_one_point(const track_t *track, double bound, int *indexes)
 			b1 = track_fast_forward(track, b1, 2.0 * (bound - total));
 		}
 	}
+    track_indexes_to_times(track, 3, indexes, times);
 	return bound;
 }
 
 static double
-track_open_distance_two_points(const track_t *track, double bound, int *indexes)
+track_open_distance_two_points(const track_t *track, double bound, time_t *times)
 {
-	indexes[0] = -1;
+    int indexes[4] = { -1, -1, -1, -1 };
 	int b1, b2;
 	for (b1 = 1; b1 < track->n - 2; ++b1) {
 		double leg1 = track->before[b1].distance;
@@ -431,13 +479,14 @@ track_open_distance_two_points(const track_t *track, double bound, int *indexes)
 		}
 		bound = leg1 + bound23;
 	}
+    track_indexes_to_times(track, 4, indexes, times);
 	return bound;
 }
 
 static double
-track_open_distance_three_points(const track_t *track, double bound, int *indexes)
+track_open_distance_three_points(const track_t *track, double bound, time_t *times)
 {
-	indexes[0] = -1;
+    int indexes[5] = { -1, -1, -1, -1, -1 };
 	int b1, b2, b3;
 	for (b1 = 1; b1 < track->n - 3; ++b1) {
 		double leg1 = track->before[b1].distance;
@@ -463,6 +512,7 @@ track_open_distance_three_points(const track_t *track, double bound, int *indexe
 		}
 		bound = leg1 + bound234;
 	}
+    track_indexes_to_times(track, 5, indexes, times);
 	return bound;
 }
 
@@ -491,9 +541,9 @@ track_circuit_close(const track_t *track, int start, int b1, int b2, int finish,
 }
 
 static double
-track_out_and_return(const track_t *track, double bound, int *indexes)
+track_out_and_return(const track_t *track, double bound, time_t *times)
 {
-	indexes[0] = -1;
+    int indexes[4] = { -1, -1, -1, -1 };
 	int b1;
 	for (b1 = 0; b1 < track->n - 2; ++b1) {
 		int start = track->best_start[b1];
@@ -511,13 +561,14 @@ track_out_and_return(const track_t *track, double bound, int *indexes)
 		}
 	}
 	track_circuit_close(track, indexes[0], indexes[1], indexes[2], indexes[3], 3.0 / R, &indexes[0], &indexes[3]);
+    track_indexes_to_times(track, 4, indexes, times);
 	return bound;
 }
 
 static double
-track_triangle(const track_t *track, double bound, int *indexes)
+track_triangle(const track_t *track, double bound, time_t *times)
 {
-	indexes[0] = -1;
+    int indexes[5] = { -1, -1, -1, -1, -1 };
 	int b1, b3;
 	for (b1 = 0; b1 < track->n - 1; ++b1) {
 		int start = track->best_start[b1];
@@ -543,15 +594,16 @@ track_triangle(const track_t *track, double bound, int *indexes)
 		fprintf(stderr, "triangle: %.2fkm\n", R * bound);
 	}
 	track_circuit_close(track, indexes[0], indexes[1], indexes[3], indexes[4], 3.0 / R, indexes + 0, indexes + 4);
+    track_indexes_to_times(track, 5, indexes, times);
 	return bound;
 }
 
 static double
-track_triangle_fai(const track_t *track, double bound, int *indexes)
+track_triangle_fai(const track_t *track, double bound, time_t *times)
 {
+    int indexes[5] = { -1, -1, -1, -1, -1 };
 	int b1, b2, b3;
 	double legbound = 0.28 * bound;
-	indexes[0] = -1;
 	for (b1 = 0; b1 < track->n - 2; ++b1) {
 		int start = track->best_start[b1];
 		int finish = track->last_finish[start];
@@ -612,14 +664,16 @@ track_triangle_fai(const track_t *track, double bound, int *indexes)
 		fprintf(stderr, "fai triangle: %.2fkm\n", R * bound);
 	}
 	track_circuit_close(track, indexes[0], indexes[1], indexes[3], indexes[4], 3.0 / R, indexes + 0, indexes + 4);
+    track_indexes_to_times(track, 5, indexes, times);
 	return bound;
 }
 
 static double
-track_quadrilateral(const track_t *track, double bound, int *indexes)
+track_quadrilateral(const track_t *track, double bound, time_t *times)
 {
+    int indexes[6] = { -1, -1, -1, -1, -1, -1 };
 	/* FIXME */
-	indexes[0] = -1;
+    track_indexes_to_times(track, 6, indexes, times);
 	return bound;
 }
 
@@ -629,11 +683,11 @@ rb_Optima_new_from_fixes_open(VALUE rb_fixes, VALUE rb_complexity)
 	VALUE rb_optima = rb_ary_new2(1);
 	track_t *track = track_new(rb_fixes);
 	int complexity = NUM2INT(rb_complexity);
-	int indexes[2];
+	time_t times[2];
 	if (2 <= complexity) {
 		static const char *names[] = { "Start", "Finish" };
-		track_open_distance(track, 0.0, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 2, indexes, names, "Open distance", 1.0, 0));
+		track_open_distance(track, 0.0, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 2, times, names, "Open distance", 1.0, 0));
 	}
 	track_delete(track);
 	return rb_funcall(rb_cOptima, id_new, 3, rb_optima, Qnil, rb_complexity);
@@ -645,45 +699,45 @@ rb_Optima_new_from_fixes_frcfd(VALUE rb_fixes, VALUE rb_complexity)
 	VALUE rb_optima = rb_ary_new2(7);
 	track_t *track = track_new(rb_fixes);
 	int complexity = NUM2INT(rb_complexity);
-	int indexes[6];
+	time_t times[6];
 	double bound = 0.0;
 	if (2 <= complexity) {
 		static const char *names[] = { "BD", "BA" };
-		bound = track_open_distance(track, bound, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 2, indexes, names, "Distance libre", bound < 15.0 / R ? 0.0 : 1.0, 0));
+		bound = track_open_distance(track, bound, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 2, times, names, "Distance libre", bound < 15.0 / R ? 0.0 : 1.0, 0));
 	}
 	if (bound < 15.0 / R)
 		bound = 15.0 / R;
 	if (3 <= complexity) {
 		static const char *names[] = { "BD", "B1", "BA" };
-		bound = track_open_distance_one_point(track, bound, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 3, indexes, names, "Distance libre avec un point de contournement", 1.0, 0));
+		bound = track_open_distance_one_point(track, bound, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 3, times, names, "Distance libre avec un point de contournement", 1.0, 0));
 	}
 	if (4 <= complexity) {
 		static const char *names[] = { "BD", "B1", "B2", "BA" };
-		bound = track_open_distance_two_points(track, bound, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 4, indexes, names, "Distance libre avec deux points de contournement", 1.0, 0));
+		bound = track_open_distance_two_points(track, bound, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 4, times, names, "Distance libre avec deux points de contournement", 1.0, 0));
 		track_compute_circuit_tables(track, 3.0 / R);
-		track_out_and_return(track, 15.0 / R, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 4, indexes, names, "Parcours en aller-retour", 1.2, 1));
+		track_out_and_return(track, 15.0 / R, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 4, times, names, "Parcours en aller-retour", 1.2, 1));
 		if (5 <= complexity) {
 			static const char *names[] = { "BD", "B1", "B2", "B3", "BA" };
-			int indexes_fai[5];
+			time_t times_fai[5];
 			track_t *downsampled_track = track_downsample(track, 0.1 / R);
 			track_compute_circuit_tables(downsampled_track, 3.0 / R);
 			bound = 15.0 / R;
-			bound = track_triangle_fai(downsampled_track, bound, indexes_fai);
-			bound = track_triangle_fai(track, nextafter(bound, 0.0), indexes_fai);
-			VALUE rb_triangle_fai = rb_optimum_new(rb_fixes, 5, indexes_fai, names, "Triangle FAI", 1.4, 1);
-			bound = track_triangle(downsampled_track, bound, indexes);
-			bound = track_triangle(track, nextafter(bound, 0.0), indexes);
-			rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 5, indexes[0] == -1 ? indexes_fai : indexes, names, "Triangle plat", 1.2, 1));
+			bound = nextafter(track_triangle_fai(downsampled_track, bound, times_fai), 0.0);
+			bound = track_triangle_fai(track, bound, times_fai);
+			VALUE rb_triangle_fai = track_rb_optimum_new(track, rb_fixes, 5, times_fai, names, "Triangle FAI", 1.4, 1);
+			bound = nextafter(track_triangle(downsampled_track, bound, times), 0.0);
+			bound = track_triangle(track, bound, times);
+			rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 5, times[0] == -1 ? times_fai : times, names, "Triangle plat", 1.2, 1));
 			rb_ary_push_unless_nil(rb_optima, rb_triangle_fai);
 			track_delete(downsampled_track);
 			if (6 <= complexity) {
 				static const char *names[] = { "BD", "B1", "B2", "B3", "B4", "BA" };
-				track_quadrilateral(track, 15.0 / R, indexes);
-				rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 6, indexes, names, "Quadrilat\xc3\xa8re", 1.2, 1));
+				track_quadrilateral(track, 15.0 / R, times);
+				rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 6, times, names, "Quadrilat\xc3\xa8re", 1.2, 1));
 			}
 		}
 	}
@@ -697,29 +751,29 @@ rb_Optima_new_from_fixes_ukxcl(VALUE rb_fixes, VALUE rb_complexity)
 	VALUE rb_optima = rb_ary_new2(4);
 	track_t *track = track_new(rb_fixes);
 	int complexity = NUM2INT(rb_complexity);
-	int indexes[5];
+	time_t times[5];
 	double bound = 0.0;
 	if (2 <= complexity) {
 		static const char *names[] = { "Start", "Finish" };
-		bound = track_open_distance(track, bound, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 2, indexes, names, "Open distance", bound < 15.0 / R ? 0.0 : 1.0, 0));
+		bound = track_open_distance(track, bound, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 2, times, names, "Open distance", bound < 15.0 / R ? 0.0 : 1.0, 0));
 	}
 	if (bound < 15.0 / R)
 		bound = 15.0 / R;
 	if (3 <= complexity) {
 		static const char *names[] = { "Start", "TP1", "Finish" };
-		bound = track_open_distance_one_point(track, bound, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 3, indexes, names, "Open distance via a turnpoint", 1.0, 0));
+		bound = track_open_distance_one_point(track, bound, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 3, times, names, "Open distance via a turnpoint", 1.0, 0));
 	}
 	if (4 <= complexity) {
 		static const char *names[] = { "Start", "TP1", "TP2", "Finish" };
-		bound = track_open_distance_two_points(track, bound, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 4, indexes, names, "Open distance via two turnpoints", 1.0, 0));
+		bound = track_open_distance_two_points(track, bound, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 4, times, names, "Open distance via two turnpoints", 1.0, 0));
 	}
 	if (5 <= complexity) {
 		static const char *names[] = { "Start", "TP1", "TP2", "TP3", "Finish" };
-		bound = track_open_distance_three_points(track, bound, indexes);
-		rb_ary_push_unless_nil(rb_optima, rb_optimum_new(rb_fixes, 5, indexes, names, "Open distance via three turnpoints", 1.0, 0));
+		bound = track_open_distance_three_points(track, bound, times);
+		rb_ary_push_unless_nil(rb_optima, track_rb_optimum_new(track, rb_fixes, 5, times, names, "Open distance via three turnpoints", 1.0, 0));
 	}
 	track_delete(track);
 	return rb_funcall(rb_cOptima, id_new, 3, rb_optima, sym_ukxcl, rb_complexity);
@@ -756,5 +810,7 @@ Init_coptima(void)
 	id_lat = rb_intern("lat");
 	id_lon = rb_intern("lon");
 	id_new = rb_intern("new");
+	id_time = rb_intern("time");
+	id_to_i = rb_intern("to_i");
 	rb_define_module_function(rb_cOptima, "new_from_igc", rb_Optima_new_from_igc, 3);
 }
