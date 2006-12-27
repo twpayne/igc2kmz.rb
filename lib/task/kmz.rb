@@ -130,7 +130,7 @@ class Task
           bearing = object.initial_bearing_to(object0)
           point = KML::Point.new(:coordinates => boundary0.halfway_to(boundary1))
           line_string1 = KML::LineString.new(:coordinates => [boundary0, boundary1], :tessellate => 1)
-          line_string2 = KML::LineString.new(:coordinates => [boundary1.destination_at(bearing - Math::PI / 6.0, 200.0), boundary1, boundary1.destination_at(bearing + Math::PI / 6.0, 200.0)], :tessellate => 1)
+          line_string2 = KML::LineString.new(:coordinates => [boundary1.destination_at(bearing - Math::PI / 12.0, 400.0), boundary1, boundary1.destination_at(bearing + Math::PI / 12.0, 400.0)], :tessellate => 1)
           multi_geometry = KML::MultiGeometry.new(point, line_string1, line_string2)
           name = hints.units[:distance][object0.distance_to(object)]
           description = "%s to %s (%s)" % [object0.name, object.name, hints.units[:distance][object0.distance_to(object)]]

@@ -33,21 +33,16 @@ class Optimum
       rows << ["Multiplier", "\xc3\x97 %.1f" % @multiplier]
       rows << ["Score", "<b>%.1f points</b>" % score]
     end
-    if @circuit
-      rows << ["#{@names[0]} - #{@names[-1]}", hints.units[:distance][@fixes[0].distance_to(@fixes[-1])]]
-    end
+    rows << ["#{@names[0]} - #{@names[-1]}", hints.units[:distance][@fixes[0].distance_to(@fixes[-1])]] if @circuit
     description = KML::Description.new(KML::CData.new(rows.to_html_table))
     folder = KML::Folder.new(KML::Name.new(name), description, KML::Snippet.new, KML::StyleUrl.new(hints.stock.check_hide_children_style.url), folder_options)
-    if @circuit
-      coords = @fixes[1...-1]
-      coords << @fixes[1] if @fixes.length > 4
-    else
-      coords = @fixes
-    end
+    coords = @circuit ? @fixes[1...-1].push(@fixes[1]) : @fixes
     coords.each_cons(2) do |coord0, coord1|
-      line_string = KML::LineString.new(:coordinates => [coord0, coord1], :tessellate => 1)
+      bearing = coord1.initial_bearing_to(coord0)
+      line_string1 = KML::LineString.new(:coordinates => [coord0, coord1], :tessellate => 1)
+      line_string2 = KML::LineString.new(:coordinates => [coord1.destination_at(bearing - Math::PI / 12.0, 400.0), coord1, coord1.destination_at(bearing + Math::PI / 12.0, 400.0)])
       point = KML::Point.new(:coordinates => coord0.halfway_to(coord1))
-      multi_geometry = KML::MultiGeometry.new(line_string, point)
+      multi_geometry = KML::MultiGeometry.new(line_string1, line_string2, point)
       name = hints.units[:distance][coord0.distance_to(coord1)]
       placemark = KML::Placemark.new(multi_geometry, :name => name, :styleUrl => hints.stock.optima_style.url)
       folder.add(placemark)
