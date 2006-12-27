@@ -26,16 +26,20 @@ class Task
 
   class TakeOff < StartCircle
 
+    def boundary(other)
+      self
+    end
+
     def description(hints)
       "Take off"
     end
 
-    def label
-      "TO"
-    end
-
     def kml_geometry
       KML::Point.new(:coordinates => self)
+    end
+
+    def label
+      "TO"
     end
 
   end
@@ -46,12 +50,12 @@ class Task
       radius == DEFAULT_RADIUS ? "Turnpoint" : "Turnpoint (%s radius)" % hints.units[:altitude][radius]
     end
 
-    def label
-      "TP"
-    end
-
     def kml_geometry
       KML::MultiGeometry.new(super, KML::Point.new(:coordinates => self))
+    end
+
+    def label
+      "TP"
     end
 
   end
@@ -86,24 +90,24 @@ class Task
       radius == DEFAULT_RADIUS ? "Goal" : "Goal (%s radius)" % hints.units[:altitude][radius]
     end
 
-    def label
-      "GOAL"
-    end
-
     def kml_geometry
       KML::MultiGeometry.new(super, KML::Point.new(:coordinates => self))
+    end
+
+    def label
+      "GOAL"
     end
 
   end
 
   class GoalLine < Point
 
-    def kml_geometry
-      KML::LineString.new(:coordinates => [@left, @right], :tessellate => 1)
-    end
-
     def description(hints)
       "Goal line (%s wide)" % hints.units[:altitude][@length]
+    end
+
+    def kml_geometry
+      KML::LineString.new(:coordinates => [@left, @right], :tessellate => 1)
     end
 
     def label
@@ -121,10 +125,13 @@ class Task
     labels = @course.collect do |object|
       if object.is_a?(Turnpoint) or object.is_a?(GoalCircle) or object.is_a?(GoalLine)
         if object0
-          coords = [object0.boundary(object), object.boundary(object0)]
-          line_string = KML::LineString.new(:coordinates => coords)
-          point = KML::Point.new(:coordinates => coords[0].halfway_to(coords[1]))
-          multi_geometry = KML::MultiGeometry.new(point, line_string)
+          boundary0 = object0.boundary(object)
+          boundary1 = object.boundary(object0)
+          bearing = object.initial_bearing_to(object0)
+          point = KML::Point.new(:coordinates => boundary0.halfway_to(boundary1))
+          line_string1 = KML::LineString.new(:coordinates => [boundary0, boundary1], :tessellate => 1)
+          line_string2 = KML::LineString.new(:coordinates => [boundary1.destination_at(bearing - Math::PI / 6.0, 200.0), boundary1, boundary1.destination_at(bearing + Math::PI / 6.0, 200.0)], :tessellate => 1)
+          multi_geometry = KML::MultiGeometry.new(point, line_string1, line_string2)
           name = hints.units[:distance][object0.distance_to(object)]
           description = "%s to %s (%s)" % [object0.name, object.name, hints.units[:distance][object0.distance_to(object)]]
           placemark = KML::Placemark.new(multi_geometry, KML::Snippet.new, :name => name, :description => description, :styleUrl => hints.stock.task_style.url)
