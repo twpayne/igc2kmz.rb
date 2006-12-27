@@ -616,7 +616,7 @@ class IGC
       rows << ["Accumulated altitude gain", hints.units[:altitude][sum_alt_gain]]
       rows << ["Accumulated altitude loss", hints.units[:altitude][sum_alt_loss]]
       description = KML::Description.new(KML::CData.new(rows.to_html_table))
-      placemark = KML::Placemark.new(multi_geometry, description, KML::Snippet.new, :styleUrl => style.url, :name => name, :visibility => 1)
+      placemark = KML::Placemark.new(multi_geometry, description, :snippet => "", :styleUrl => style.url, :name => name, :visibility => 1)
       folder.add(placemark)
     end
     KMZ.new(folder, :roots => [thermal_style, glide_style])

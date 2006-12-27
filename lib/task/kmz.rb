@@ -134,7 +134,7 @@ class Task
           multi_geometry = KML::MultiGeometry.new(point, line_string1, line_string2)
           name = hints.units[:distance][object0.distance_to(object)]
           description = "%s to %s (%s)" % [object0.name, object.name, hints.units[:distance][object0.distance_to(object)]]
-          placemark = KML::Placemark.new(multi_geometry, KML::Snippet.new, :name => name, :description => description, :styleUrl => hints.stock.task_style.url)
+          placemark = KML::Placemark.new(multi_geometry, :snippet => "", :name => name, :description => description, :styleUrl => hints.stock.task_style.url)
           folder.add(placemark)
         end
         object0 = object
@@ -147,7 +147,7 @@ class Task
       else
         label = object.label
       end
-      placemark = KML::Placemark.new(object.kml_geometry, KML::Snippet.new, :name => label, :description => object.description(hints), :styleUrl => hints.stock.task_style.url)
+      placemark = KML::Placemark.new(object.kml_geometry, :snippet => "", :name => label, :description => object.description(hints), :styleUrl => hints.stock.task_style.url)
       folder.add(placemark)
       label
     end
