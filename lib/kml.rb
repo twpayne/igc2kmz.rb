@@ -60,7 +60,7 @@ class KML
       @attributes.each do |attribute, value|
         io.write(" #{attribute}=\"#{value}\"")
       end
-      io.write(@text ? ">#{@text}</#{name}>" : "/>")
+      io.write(@text and !@text.empty? ? ">#{@text}</#{name}>" : "/>")
     end
 
     def pretty_write(io, indent, leader)
