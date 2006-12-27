@@ -89,4 +89,4 @@ def main
   GPX.new(task.to_gpx).write($stdout, 0)
 end
 
-main
+main if $0 == __FILE__
