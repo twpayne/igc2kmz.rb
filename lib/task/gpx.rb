@@ -15,7 +15,7 @@ class Task
   class Point < Coord
 
     def to_gpx
-      rtept = GPX::Element.new("rtept", "lat" => Radians.to_deg(@lat), "lon" => Radians.to_deg(@lon))
+      rtept = GPX::RtePt.new("lat" => Radians.to_deg(@lat), "lon" => Radians.to_deg(@lon))
       rtept.add(GPX::Type.new(self.class.to_s.sub(/\A.*::/, "").downcase))
       rtept.add(GPX::Name.new(@name)) if @name
       rtept.add(GPX::Ele.new(@alt)) unless @alt.zero?
