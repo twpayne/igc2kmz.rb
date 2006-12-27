@@ -1,0 +1,57 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "coord"
+require "igc"
+require "optima"
+require "optparse"
+
+module Radians
+
+  class << self
+
+    def to_dmh(rad, hemispheres)
+      deg, min = (60.0 * rad * 180.0 / Math::PI).divmod(60)
+      "%d'%06.3f%s" % [deg.abs, min, hemispheres[deg <=> 0, 1]]
+    end
+
+  end
+
+end
+
+class Coord
+
+  def to_s
+    "%s %s %dm" % [Radians.to_dmh(@lat, "NNS"), Radians.to_dmh(@lon, "EEW"), @alt]
+  end
+
+end
+
+def main(argv)
+  league = nil
+  complexity = 4
+  OptionParser.new do |op|
+    op.on("-k", "--complexity COMPLEXITY", Integer, "Complexity") do |arg|
+      complexity = arg
+    end
+    op.on("-x", "--xc-league LEAGUE", Optima::LEAGUES.keys, "XC league") do |arg|
+      league = arg
+    end
+    op.parse!(argv)
+  end
+  argv.each do |arg|
+    igc = IGC.new(File.open(arg))
+    optima = Optima.new_from_igc(igc, league, complexity)
+    optima.each do |optimum|
+      puts("#{optimum.flight_type}:")
+      optimum.fixes.each_with_index do |fix, index|
+        puts("\t#{optimum.names[index]}: #{fix}")
+      end
+      puts("\tDistance: #{optimum.distance / 1000.0}km")
+      puts("\tMultiplier: #{optimum.multiplier}")
+      puts("\tScore: %.1f points" % optimum.score)
+    end
+  end
+end
+
+main(ARGV) if $0 == __FILE__
