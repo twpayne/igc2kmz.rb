@@ -47,9 +47,9 @@ rb_coord_halfway_to(VALUE obj, VALUE oth)
     double Bx = cos(lat2) * cos(delta_lon);
     double By = cos(lat2) * sin(delta_lon);
     double cos_lat1_plus_Bx = cos(lat1) + Bx;
-	double lat = atan2(sin(lat1) + sin(lat2), sqrt(cos_lat1_plus_Bx * cos_lat1_plus_Bx + By * By));
-	double lon = lon1 + atan2(By, cos_lat1_plus_Bx);
-	double alt = (alt1 + alt2) / 2.0;
+    double lat = atan2(sin(lat1) + sin(lat2), sqrt(cos_lat1_plus_Bx * cos_lat1_plus_Bx + By * By));
+    double lon = lon1 + atan2(By, cos_lat1_plus_Bx);
+    double alt = (alt1 + alt2) / 2.0;
     return rb_coord_new(lat, lon, alt);
 }
 
