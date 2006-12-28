@@ -324,7 +324,7 @@ track_downsample(track_t *track, double threshold)
 }
 
 static void
-track_compute_circuit_tables(track_t *track, double bound)
+track_compute_circuit_tables(track_t *track, double circuit_bound)
 {
 	track->last_finish = ALLOC_N(int, track->n);
 	track->best_start = ALLOC_N(int, track->n);
@@ -332,11 +332,11 @@ track_compute_circuit_tables(track_t *track, double bound)
 	for (i = 0; i < track->n; ++i) {
 		for (j = track->n - 1; j >= i; ) {
 			double error = track_delta(track, i, j);
-			if (error < bound) {
+			if (error < circuit_bound) {
 				track->last_finish[i] = j;
 				break;
 			} else {
-				j = track_fast_backward(track, j, error - bound);
+				j = track_fast_backward(track, j, error - circuit_bound);
 			}
 		}
 		if (track->last_finish[i] > track->last_finish[current_best_start])
@@ -471,26 +471,30 @@ track_open_distance_three_points(const track_t *track, double bound, time_t *tim
 	return bound;
 }
 
-/* FIXME */
 static void
-track_circuit_close(const track_t *track, int start, int b1, int b2, int finish, double boundda, int *outstart, int *outfinish)
+track_circuit_close(const track_t *track, int n, int *indexes, double circuit_bound)
 {
-	if (start == -1)
+	if (indexes[0] == -1)
 		return;
-	int a, d;
-	double bound = track_delta(track, b1, start) + track_delta(track, start, finish) + track_delta(track, finish, b2);
-	for (d = start; d <= b1; ++d) {
-		double leg1d = track_delta(track, b1, d);
-		for (a = b2; a <= finish; ++a) {
-			double legda = track_delta(track, d, a);
-			if (legda < boundda) {
-				double total = leg1d + legda + track_delta(track, a, b2);
+	int start, finish;
+	double bound = track_delta(track, indexes[1], indexes[0]) + track_delta(track, indexes[0], indexes[n - 1]) + track_delta(track, indexes[n - 1], indexes[n - 2]);
+	for (start = indexes[0]; start <= indexes[1]; ++start) {
+		double leg1 = track_delta(track, indexes[1], start);
+		for (finish = indexes[n - 1]; finish >= indexes[n - 2]; ) {
+			double leg2 = track_delta(track, start, finish);
+			if (leg2 < circuit_bound) {
+				double total = leg1 + leg2 + track_delta(track, finish, indexes[n - 2]);
 				if (total < bound) {
-					*outstart = d;
-					*outfinish = a;
+					indexes[0] = start;
+					indexes[n - 1] = finish;
 					bound = total;
-				}
-			}
+                    --finish;
+				} else {
+                    finish = track_fast_backward(track, finish, 0.5 * (total - bound));
+                }
+			} else {
+                finish = track_fast_backward(track, finish, leg2 - circuit_bound);
+            }
 		}
 	}
 }
@@ -515,7 +519,7 @@ track_out_and_return(const track_t *track, double bound, time_t *times)
 			bound = leg;
 		}
 	}
-	track_circuit_close(track, indexes[0], indexes[1], indexes[2], indexes[3], 3.0 / R, &indexes[0], &indexes[3]);
+	track_circuit_close(track, 4, indexes, 3.0 / R);
     track_indexes_to_times(track, 4, indexes, times);
 	return bound;
 }
@@ -545,7 +549,7 @@ track_triangle(const track_t *track, double bound, time_t *times)
 			}
 		}
 	}
-	track_circuit_close(track, indexes[0], indexes[1], indexes[3], indexes[4], 3.0 / R, indexes + 0, indexes + 4);
+	track_circuit_close(track, 5, indexes, 3.0 / R);
     track_indexes_to_times(track, 5, indexes, times);
 	return bound;
 }
@@ -613,7 +617,7 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
 			}
 		}
 	}
-	track_circuit_close(track, indexes[0], indexes[1], indexes[3], indexes[4], 3.0 / R, indexes + 0, indexes + 4);
+	track_circuit_close(track, 5, indexes, 3.0 / R);
     track_indexes_to_times(track, 5, indexes, times);
 	return bound;
 }

@@ -51,6 +51,9 @@ def main(argv)
       puts("Distance: #{xc.distance / 1000.0}km")
       puts("Multiplier: #{xc.multiplier}")
       puts("Score: %.1f points" % xc.score)
+      if xc.circuit?
+        puts("#{xc.turnpoints[-1].name}-#{xc.turnpoints[0].name}: #{xc.turnpoints[0].distance_to(xc.turnpoints[-1]) / 1000.0}km")
+      end
     end
   end
 end
