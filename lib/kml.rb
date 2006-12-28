@@ -55,7 +55,7 @@ class KML
     end
 
     def write(io)
-      name = self.class.const_get("NAME")
+      name = self.class.const_get(:NAME)
       io.write("<#{name}")
       @attributes.each do |attribute, value|
         io.write(" #{attribute}=\"#{value}\"")
@@ -101,7 +101,7 @@ class KML
     end
 
     def write(io)
-      name = self.class.const_get("NAME")
+      name = self.class.const_get(:NAME)
       io.write("<#{name}")
       @attributes.each do |attribute, value|
         io.write(" #{attribute}=\"#{value}\"")
@@ -118,7 +118,7 @@ class KML
     end
 
     def pretty_write(io, indent, leader)
-      name = self.class.const_get("NAME")
+      name = self.class.const_get(:NAME)
       io.write("#{leader}<#{name}")
       @attributes.each do |attribute, value|
         io.write(" #{attribute}=\"#{value}\"")
@@ -146,7 +146,7 @@ class KML
             arg.each do |key, value|
               next if value.nil?
               value = [value] unless value.is_a?(Array)
-              class_name = key.to_s.sub(/\A./) { |s| s.upcase }
+              class_name = key.to_s.sub(/\A./) { |s| s.upcase }.to_sym
               element.add(KML.const_get(class_name).new(*value))
             end
           else
@@ -176,7 +176,7 @@ class KML
 
     def simple(*args, &block)
       args.each do |arg|
-        class_name = arg.to_s.sub(/\A./) { |s| s.upcase }
+        class_name = arg.to_s.sub(/\A./) { |s| s.upcase }.to_sym
         class_eval("class #{class_name} < SimpleElement; NAME = \"#{arg}\"; end")
         const_get(class_name).instance_eval(&block) if block
       end
@@ -184,7 +184,7 @@ class KML
 
     def complex(*args, &block)
       args.each do |arg|
-        class_name = arg.to_s.sub(/\A./) { |s| s.upcase }
+        class_name = arg.to_s.sub(/\A./) { |s| s.upcase }.to_sym
         class_eval("class #{class_name} < ComplexElement; NAME = \"#{arg}\"; end")
         const_get(class_name).instance_eval(&block) if block
       end
