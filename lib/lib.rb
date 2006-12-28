@@ -80,6 +80,17 @@ class Array
 
 end
 
+class Class
+
+  def module_heirarchy
+    klass = Object
+    name.split(/::/).collect! do |const|
+      klass = klass.const_get(const)
+    end.reverse!
+  end
+
+end
+
 class Date
 
   def to_time
