@@ -394,17 +394,17 @@ static double
 track_open_distance_one_point(const track_t *track, double bound, time_t *times)
 {
     int indexes[3] = { -1, -1, -1 };
-    int b1;
-    for (b1 = 1; b1 < track->n - 1; ) {
-        double total = track->before[b1].distance + track->after[b1].distance;
+    int tp1;
+    for (tp1 = 1; tp1 < track->n - 1; ) {
+        double total = track->before[tp1].distance + track->after[tp1].distance;
         if (total > bound) {
-            indexes[0] = track->before[b1].index;
-            indexes[1] = b1;
-            indexes[2] = track->after[b1].index;
+            indexes[0] = track->before[tp1].index;
+            indexes[1] = tp1;
+            indexes[2] = track->after[tp1].index;
             bound = total;
-            ++b1;
+            ++tp1;
         } else {
-            b1 = track_fast_forward(track, b1, 2.0 * (bound - total));
+            tp1 = track_fast_forward(track, tp1, 2.0 * (bound - total));
         }
     }
     track_indexes_to_times(track, 3, indexes, times);
@@ -415,21 +415,21 @@ static double
 track_open_distance_two_points(const track_t *track, double bound, time_t *times)
 {
     int indexes[4] = { -1, -1, -1, -1 };
-    int b1, b2;
-    for (b1 = 1; b1 < track->n - 2; ++b1) {
-        double leg1 = track->before[b1].distance;
+    int tp1, tp2;
+    for (tp1 = 1; tp1 < track->n - 2; ++tp1) {
+        double leg1 = track->before[tp1].distance;
         double bound23 = bound - leg1;
-        for (b2 = b1 + 1; b2 < track->n - 1; ) {
-            double leg23 = track_delta(track, b1, b2) + track->after[b2].distance;
+        for (tp2 = tp1 + 1; tp2 < track->n - 1; ) {
+            double leg23 = track_delta(track, tp1, tp2) + track->after[tp2].distance;
             if (leg23 > bound23) {
-                indexes[0] = track->before[b1].index;
-                indexes[1] = b1;
-                indexes[2] = b2;
-                indexes[3] = track->after[b2].index;
+                indexes[0] = track->before[tp1].index;
+                indexes[1] = tp1;
+                indexes[2] = tp2;
+                indexes[3] = track->after[tp2].index;
                 bound23 = leg23;
-                ++b2;
+                ++tp2;
             } else {
-                b2 = track_fast_forward(track, b2, 0.5 * (bound23 - leg23));
+                tp2 = track_fast_forward(track, tp2, 0.5 * (bound23 - leg23));
             }
         }
         bound = leg1 + bound23;
@@ -442,25 +442,25 @@ static double
 track_open_distance_three_points(const track_t *track, double bound, time_t *times)
 {
     int indexes[5] = { -1, -1, -1, -1, -1 };
-    int b1, b2, b3;
-    for (b1 = 1; b1 < track->n - 3; ++b1) {
-        double leg1 = track->before[b1].distance;
+    int tp1, tp2, tp3;
+    for (tp1 = 1; tp1 < track->n - 3; ++tp1) {
+        double leg1 = track->before[tp1].distance;
         double bound234 = bound - leg1;
-        for (b2 = b1 + 1; b2 < track->n - 2; ++b2) {
-            double leg2 = track_delta(track, b1, b2);
+        for (tp2 = tp1 + 1; tp2 < track->n - 2; ++tp2) {
+            double leg2 = track_delta(track, tp1, tp2);
             double bound34 = bound234 - leg2;
-            for (b3 = b2 + 1; b3 < track->n - 1; ) {
-                double legs34 = track_delta(track, b2, b3) + track->after[b3].distance;
+            for (tp3 = tp2 + 1; tp3 < track->n - 1; ) {
+                double legs34 = track_delta(track, tp2, tp3) + track->after[tp3].distance;
                 if (legs34 > bound34) {
-                    indexes[0] = track->before[b1].index;
-                    indexes[1] = b1;
-                    indexes[2] = b2;
-                    indexes[3] = b3;
-                    indexes[4] = track->after[b3].index;
+                    indexes[0] = track->before[tp1].index;
+                    indexes[1] = tp1;
+                    indexes[2] = tp2;
+                    indexes[3] = tp3;
+                    indexes[4] = track->after[tp3].index;
                     bound34 = legs34;
-                    ++b3;
+                    ++tp3;
                 } else {
-                    b3 = track_fast_forward(track, b3, 2.0 * (bound34 - legs34));
+                    tp3 = track_fast_forward(track, tp3, 2.0 * (bound34 - legs34));
                 }
             }
             bound234 = leg2 + bound34;
@@ -503,18 +503,18 @@ static double
 track_out_and_return(const track_t *track, double bound, time_t *times)
 {
     int indexes[4] = { -1, -1, -1, -1 };
-    int b1;
-    for (b1 = 0; b1 < track->n - 2; ++b1) {
-        int start = track->best_start[b1];
+    int tp1;
+    for (tp1 = 0; tp1 < track->n - 2; ++tp1) {
+        int start = track->best_start[tp1];
         int finish = track->last_finish[start];
         if (finish < 0)
             continue;
         double leg = 0.0;
-        int b2 = track_furthest_from(track, b1, b1 + 1, finish + 1, bound, &leg);
-        if (b2 >= 0) {
+        int tp2 = track_furthest_from(track, tp1, tp1 + 1, finish + 1, bound, &leg);
+        if (tp2 >= 0) {
             indexes[0] = start;
-            indexes[1] = b1;
-            indexes[2] = b2;
+            indexes[1] = tp1;
+            indexes[2] = tp2;
             indexes[3] = finish;
             bound = leg;
         }
@@ -528,23 +528,23 @@ static double
 track_triangle(const track_t *track, double bound, time_t *times)
 {
     int indexes[5] = { -1, -1, -1, -1, -1 };
-    int b1, b3;
-    for (b1 = 0; b1 < track->n - 1; ++b1) {
-        int start = track->best_start[b1];
+    int tp1, tp3;
+    for (tp1 = 0; tp1 < track->n - 1; ++tp1) {
+        int start = track->best_start[tp1];
         int finish = track->last_finish[start];
         if (finish < 0)
             continue;
-        for (b3 = finish; b3 > b1 + 1; --b3) {
-            double leg31 = track_delta(track, b3, b1);
+        for (tp3 = finish; tp3 > tp1 + 1; --tp3) {
+            double leg31 = track_delta(track, tp3, tp1);
             double bound123 = bound - leg31;
             double legs123 = 0.0;
-            int b2 = track_furthest_from2(track, b1, b3, b1 + 1, b3, bound123, &legs123);
-            if (b2 > 0) {
+            int tp2 = track_furthest_from2(track, tp1, tp3, tp1 + 1, tp3, bound123, &legs123);
+            if (tp2 > 0) {
                 bound = leg31 + legs123;
                 indexes[0] = start;
-                indexes[1] = b1;
-                indexes[2] = b2;
-                indexes[3] = b3;
+                indexes[1] = tp1;
+                indexes[2] = tp2;
+                indexes[3] = tp3;
                 indexes[4] = finish;
             }
         }
@@ -559,29 +559,29 @@ static double
 track_triangle_fai(const track_t *track, double bound, time_t *times)
 {
     int indexes[5] = { -1, -1, -1, -1, -1 };
-    int b1, b2, b3;
+    int tp1, tp2, tp3;
     double legbound = 0.28 * bound;
-    for (b1 = 0; b1 < track->n - 2; ++b1) {
-        int start = track->best_start[b1];
+    for (tp1 = 0; tp1 < track->n - 2; ++tp1) {
+        int start = track->best_start[tp1];
         int finish = track->last_finish[start];
         if (finish < 0)
             continue;
-        b2 = track_fast_forward(track, b1, legbound);
-        for (; b2 < finish; ++b2) {
-            double leg12 = track_delta(track, b1, b2);
+        tp2 = track_fast_forward(track, tp1, legbound);
+        for (; tp2 < finish; ++tp2) {
+            double leg12 = track_delta(track, tp1, tp2);
             bound_t leg23bound;
             leg23bound.min = 0.28 * leg12 / 0.42;
             if (leg23bound.min < legbound)
                 leg23bound.min = legbound;
             leg23bound.max = 0.42 * leg12 / 0.28;
-            b3 = track_fast_forward(track, b2, leg23bound.min);
-            while (b3 <= finish) {
-                double leg23 = track_delta(track, b2, b3);
+            tp3 = track_fast_forward(track, tp2, leg23bound.min);
+            while (tp3 <= finish) {
+                double leg23 = track_delta(track, tp2, tp3);
                 if (leg23 < leg23bound.min) {
-                    b3 = track_fast_forward(track, b3, leg23bound.min - leg23);
+                    tp3 = track_fast_forward(track, tp3, leg23bound.min - leg23);
                     continue;
                 } else if (leg23 > leg23bound.max) {
-                    b3 = track_fast_forward(track, b3, leg23 - leg23bound.max);
+                    tp3 = track_fast_forward(track, tp3, leg23 - leg23bound.max);
                     continue;
                 }
                 bound_t leg31bound;
@@ -592,15 +592,15 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
                 if (leg23bound.max < leg31bound.max)
                     leg31bound.max = leg23bound.max;
                 if (leg31bound.max < leg31bound.min) {
-                    ++b3; /* FIXME */
+                    ++tp3; /* FIXME */
                     continue;
                 }
-                double leg31 = track_delta(track, b3, b1);
+                double leg31 = track_delta(track, tp3, tp1);
                 if (leg31 < leg31bound.min) {
-                    b3 = track_fast_forward(track, b3, leg31bound.min - leg31);
+                    tp3 = track_fast_forward(track, tp3, leg31bound.min - leg31);
                     continue;
                 } else if (leg31 > leg31bound.max) {
-                    b3 = track_fast_forward(track, b3, leg31 - leg31bound.max);
+                    tp3 = track_fast_forward(track, tp3, leg31 - leg31bound.max);
                     continue;
                 }
                 double d = leg12 + leg23 + leg31;
@@ -608,12 +608,12 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
                     bound = d;
                     legbound = 0.28 * bound;
                     indexes[0] = start;
-                    indexes[1] = b1;
-                    indexes[2] = b2;
-                    indexes[3] = b3;
+                    indexes[1] = tp1;
+                    indexes[2] = tp2;
+                    indexes[3] = tp3;
                     indexes[4] = finish;
                 }
-                ++b3;
+                ++tp3;
             }
         }
     }
