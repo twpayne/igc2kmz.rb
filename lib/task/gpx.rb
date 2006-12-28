@@ -170,7 +170,7 @@ class Task
     def new_from_gpx(rte)
       competition = rte.elements["name"].default { text }
       number = rte.elements["number"].default { text.to_i }
-      type = rte.elements["type"].default { text.intern }
+      type = rte.elements["type"].default { text.to_sym }
       course = []
       rte.elements.each("rtept") do |rtept|
         case rtept.elements["type"].default { text }

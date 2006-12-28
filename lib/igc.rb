@@ -100,7 +100,7 @@ class IGC
       when /\AI(\d\d)(\d{4}[0-9A-Z]{3})*\s*\z/i
         unless $1.to_i.zero?
           $2.scan(/(\d\d)(\d\d)([0-9A-Z]{3})/i) do |md|
-            @extensions << Extension.new(($1.to_i - 1)...$2.to_i, $3.downcase.intern)
+            @extensions << Extension.new(($1.to_i - 1)...$2.to_i, $3.downcase.to_sym)
           end
         end
       when /\AC(\d\d)(\d\d)(\d{3})([NS])(\d{3})(\d\d)(\d{3})([EW])(.*)\z/i
@@ -122,7 +122,7 @@ class IGC
         @extensions.each do |extension|
           extensions[extension.code] = line[extension.bytes].to_i
         end
-        @fixes << Fix.new(time, lat, lon, $11.to_i, $10.intern, $12.to_i, extensions)
+        @fixes << Fix.new(time, lat, lon, $11.to_i, $10.to_sym, $12.to_i, extensions)
       when /\AL/i
       when /\AG(.*)\z/i
         @security_code << $1.strip

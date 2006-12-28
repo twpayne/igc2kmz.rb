@@ -33,7 +33,7 @@ class Bounds
       @hash[id]
     elsif /\A(.*)=\z/.match(id.to_s)
       raise ArgumentError unless args.length == 1
-      @hash[$1.intern] = args[0]
+      @hash[$1.to_sym] = args[0]
     else
       super
     end
