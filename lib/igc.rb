@@ -143,6 +143,7 @@ class IGC
       @altitude_data = false
     end
     @times = @fixes.collect(&:time).collect!(&:to_i)
+    raise unless @altitude_data
   end
 
   def fix_at(time)
