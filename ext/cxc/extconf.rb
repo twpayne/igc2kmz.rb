@@ -1,4 +1,4 @@
 require "mkmf"
 
 $CFLAGS += " -Wall -Wextra -Wmissing-prototypes -ffast-math"
-create_makefile("coptima")
+create_makefile("cxc")

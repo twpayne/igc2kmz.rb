@@ -9,6 +9,7 @@ require "rexml/document"
 require "sponsor"
 require "task/gpx"
 require "units"
+require "xc"
 
 SPONSORS = {
   :gradient => Sponsor.new("Gradient",    "http://www.gradient.cx/",    "images/gradient.png"),
@@ -49,7 +50,7 @@ def main(argv)
     op.on("-w", "--width WIDTH", "Width", Integer) do |arg|
       hints.width = arg.constrain(1)
     end
-    op.on("-x", "--xc-league LEAGUE", Optima::LEAGUES.keys, "XC league") do |arg|
+    op.on("-x", "--xc-league LEAGUE", XC.leagues_hash, "XC league") do |arg|
       hints.league = arg
     end
     op.on("-z", "--tz-offset OFFSET", TIME_REGEXP, "Timezone offset") do |arg|

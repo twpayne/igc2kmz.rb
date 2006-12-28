@@ -3,8 +3,8 @@
 $:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
 require "coord"
 require "igc"
-require "optima"
 require "optparse"
+require "xc"
 
 module Radians
 
@@ -28,28 +28,29 @@ class Coord
 end
 
 def main(argv)
-  league = nil
+  league = XC::Open
   complexity = 4
   OptionParser.new do |op|
     op.on("-k", "--complexity COMPLEXITY", Integer, "Complexity") do |arg|
       complexity = arg
     end
-    op.on("-x", "--xc-league LEAGUE", Optima::LEAGUES.keys, "XC league") do |arg|
+    op.on("-x", "--xc-league LEAGUE", XC.leagues_hash, "XC league") do |arg|
       league = arg
     end
     op.parse!(argv)
   end
   argv.each do |arg|
     igc = IGC.new(File.open(arg))
-    optima = Optima.new_from_igc(igc, league, complexity)
-    optima.each do |optimum|
-      puts("#{optimum.flight_type}:")
-      optimum.fixes.each_with_index do |fix, index|
-        puts("\t#{optimum.names[index]}: #{fix}")
+    league.optimize(igc.fixes, complexity).each do |xc|
+      puts("League-Name: #{xc.league.name}")
+      puts("League-Description: #{xc.league.description}")
+      puts("Type: #{xc.type}")
+      xc.turnpoints.each do |turnpoint|
+        puts("#{turnpoint.name}: #{turnpoint}")
       end
-      puts("\tDistance: #{optimum.distance / 1000.0}km")
-      puts("\tMultiplier: #{optimum.multiplier}")
-      puts("\tScore: %.1f points" % optimum.score)
+      puts("Distance: #{xc.distance / 1000.0}km")
+      puts("Multiplier: #{xc.multiplier}")
+      puts("Score: %.1f points" % xc.score)
     end
   end
 end

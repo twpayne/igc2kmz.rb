@@ -1,12 +1,12 @@
-all: ext/ccoord/ccoord.so ext/coptima/coptima.so
+all: ext/ccoord/ccoord.so ext/cxc/cxc.so
 
 distclean: clean
 	rm ext/ccoord/Makefile
-	rm ext/coptima/Makefile
+	rm ext/cxc/Makefile
 
-clean: ext/ccoord/Makefile ext/coptima/Makefile
+clean: ext/ccoord/Makefile ext/cxc/Makefile
 	cd ext/ccoord && make clean
-	cd ext/coptima && make clean
+	cd ext/cxc && make clean
 
 ext/ccoord/ccoord.so: ext/ccoord/Makefile ext/ccoord/ccoord.c
 	cd ext/ccoord && make
@@ -14,11 +14,11 @@ ext/ccoord/ccoord.so: ext/ccoord/Makefile ext/ccoord/ccoord.c
 ext/ccoord/Makefile: ext/ccoord/extconf.rb
 	cd ext/ccoord && ruby extconf.rb
 
-ext/coptima/coptima.so: ext/coptima/Makefile ext/coptima/coptima.c
-	cd ext/coptima && make
+ext/cxc/cxc.so: ext/cxc/Makefile ext/cxc/cxc.c
+	cd ext/cxc && make
 
-ext/coptima/Makefile: ext/coptima/extconf.rb
-	cd ext/coptima && ruby extconf.rb
+ext/cxc/Makefile: ext/cxc/extconf.rb
+	cd ext/cxc && ruby extconf.rb
 
 check:
 	ruby test/test_lib.rb

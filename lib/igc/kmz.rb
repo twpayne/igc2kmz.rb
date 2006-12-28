@@ -3,8 +3,6 @@ require "html"
 require "igc"
 require "igc/analysis"
 require "kmz"
-require "optima"
-require "optima/kmz"
 require "ostruct"
 require "photo/kmz"
 require "sponsor/kmz"
@@ -12,6 +10,8 @@ require "task"
 require "task/kmz"
 require "units"
 require "rvg/rvg"
+require "xc"
+require "xc/kmz"
 
 class KML
 
@@ -357,13 +357,13 @@ class IGC
       pixel.set_channel_depth(Magick::AllChannels, 1)
       stock.pixel_url = "images/pixel.#{pixel.format.downcase}"
       stock.kmz.merge_files(stock.pixel_url => pixel.to_blob)
-      # optima
+      # xc
       color = KML::Color.color("magenta")
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => IGC::ICON_SCALE)
       label_style = KML::LabelStyle.new(color)
       line_style = KML::LineStyle.new(color, :width => 2)
-      stock.optima_style = KML::Style.new(icon_style, label_style, line_style)
-      stock.kmz.merge_roots(stock.optima_style)
+      stock.xc_style = KML::Style.new(icon_style, label_style, line_style)
+      stock.kmz.merge_roots(stock.xc_style)
       # task
       color = KML::Color.color("yellow")
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => IGC::ICON_SCALE)
@@ -402,13 +402,11 @@ class IGC
       rows << ["Competition","%s task %d" % [task.competition, task.number]]
       rows << ["Task", "%s %s" % [hints.units[:distance][task.distance], Task::TYPES[task.type]]]
     end
-    if hints.optima
-      optimum = hints.optima.optima.sort_by(&:score)[-1]
-      rows << ["Cross country league", Optima::LEAGUES[hints.optima.league]] if hints.optima.league
-      rows << ["Cross country type", optimum.flight_type]
-      rows << ["Cross country distance", "%s (%.1f points)" % [hints.units[:distance][optimum.distance], optimum.score]]
-      rows << ["Time on task", (optimum.fixes[-1].time - optimum.fixes[0].time).to_duration]
-      rows << ["Average speed", hints.units[:speed][optimum.distance / (optimum.fixes[-1].time - optimum.fixes[0].time)]]
+    if hints.xcs and !hints.xcs.empty?
+      xc = hints.xcs.sort_by(&:score)[-1]
+      rows << ["Cross country league", xc.league.description]
+      rows << ["Cross country type", xc.type]
+      rows << ["Cross country distance", (xc.multiplier.zero? ? "%s" : "%s (%.1f points)") % [hints.units[:distance][xc.distance], xc.score]]
     end
     rows << ["Take off time", @fixes[0].time.to_time(hints)]
     rows << ["Landing time", @fixes[-1].time.to_time(hints)]
@@ -451,23 +449,27 @@ class IGC
       hints.bounds = @bounds
     end
     hints.igc = self
-    hints.optima = Optima.new_from_igc(self, hints.league, hints.complexity) unless hints.task
+    hints.xcs = hints.league.optimize(@fixes, hints.complexity) unless hints.task
     hints.scales = OpenStruct.new
     hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, hints.units[:altitude])
     hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, hints.units[:climb])
     hints.scales.speed = Scale.new("speed", hints.bounds.speed, hints.units[:speed])
     fields = []
     fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
-    fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     fields << "#{hints.task.competition} task #{hints.task.number}" if hints.task
+    if hints.xcs and !hints.xcs.empty?
+      xc = hints.xcs.sort_by(&:score)[-1]
+      fields << "%s %s" % [hints.units[:distance][xc.distance], xc.type.downcase]
+    end
     fields << @header[:site] if @header[:site]
+    fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     snippet = KML::Snippet.new(fields.join(", "))
     kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(@filename), KML::Open.new(1))
     kmz.merge_sibling(hints.stock.kmz)
     kmz.merge_sibling(track_log_folder(hints))
     kmz.merge_sibling(shadow_folder(hints))
     kmz.merge_sibling(photos_folder(hints)) if hints.photos
-    kmz.merge_sibling(optima_folder(hints)) if hints.optima
+    kmz.merge_sibling(xc_folder(hints)) if hints.xcs
     kmz.merge_sibling(competition_folder(hints)) if hints.task
     kmz.merge_sibling(altitude_marks_folder(hints))
     kmz.merge_sibling(thermals_and_glides_folder(hints))
@@ -662,8 +664,15 @@ class IGC
     kmz.merge(hints.stock.visible_none_folder)
   end
 
-  def optima_folder(hints)
-    hints.optima.to_kmz(hints, :open => 1)
+  def xc_folder(hints)
+    return KMZ.new if hints.xcs.empty?
+    kmz = KMZ.new(KML::Folder.new(:name => "Cross country", :open => 1, :styleUrl => hints.stock.radio_folder_style.url))
+    kmz.merge(hints.stock.invisible_none_folder)
+    best_xc = hints.xcs.sort_by(&:score)[-1]
+    hints.xcs.each do |xc|
+      kmz.merge(xc.to_kmz(hints, :visibility => xc == best_xc ? nil : 0))
+    end
+    kmz
   end
 
   def task_marks_folder(hints)
