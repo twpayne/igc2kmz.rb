@@ -415,7 +415,6 @@ class IGC
       rows << ["Take off altitude", hints.units[:altitude][@fixes[0].alt]]
       rows << ["Maximum altitude", hints.units[:altitude][@bounds.alt.last]]
       rows << ["Maximum altitude above take off", hints.units[:altitude][@bounds.alt.last - @fixes[0].alt]]
-      rows << ["Minimum altitude", hints.units[:altitude][@bounds.alt.first]]
       max_alt_gain = 0
       min_alt = max_alt = @fixes[0].alt
       @fixes.each do |fix|
@@ -433,6 +432,7 @@ class IGC
         change = fix1.alt - fix0.alt
         sum_alt_gain += change if change > 0
       end
+      rows << ["Minimum altitude", hints.units[:altitude][@bounds.alt.first]]
       rows << ["Accumulated altitude gain", hints.units[:altitude][sum_alt_gain]]
       rows << ["Maximum climb", hints.units[:climb][@bounds.climb.last]]
       rows << ["Maximum sink", hints.units[:climb][@bounds.climb.first]]
