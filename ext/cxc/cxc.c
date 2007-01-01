@@ -6,6 +6,7 @@
 #define p(rb_value) rb_funcall(rb_mKernel, rb_intern("p"), 1, (rb_value))
 
 #define R 6371.0
+#define CIRCUIT_WEIGHT 256.0
 
 static VALUE id_alt;
 static VALUE id_lat;
@@ -477,23 +478,19 @@ track_circuit_close(const track_t *track, int n, int *indexes, double circuit_bo
     if (indexes[0] == -1)
         return;
     int start, finish;
-    double bound = track_delta(track, indexes[1], indexes[0]) + track_delta(track, indexes[0], indexes[n - 1]) + track_delta(track, indexes[n - 1], indexes[n - 2]);
+    double bound = track_delta(track, indexes[1], indexes[0]) + CIRCUIT_WEIGHT * track_delta(track, indexes[0], indexes[n - 1]) + track_delta(track, indexes[n - 1], indexes[n - 2]);
     for (start = indexes[0]; start <= indexes[1]; ++start) {
         double leg1 = track_delta(track, indexes[1], start);
-        for (finish = indexes[n - 1]; finish >= indexes[n - 2]; ) {
+        for (finish = indexes[n - 1]; finish >= indexes[n - 2]; --finish) {
             double leg2 = track_delta(track, start, finish);
             if (leg2 < circuit_bound) {
-                double total = leg1 + leg2 + track_delta(track, finish, indexes[n - 2]);
-                if (total < bound) {
+                double leg3 = track_delta(track, finish, indexes[n - 2]);
+                double score = leg1 + CIRCUIT_WEIGHT * leg2 + leg3;
+                if (score < bound) {
                     indexes[0] = start;
                     indexes[n - 1] = finish;
-                    bound = total;
-                    --finish;
-                } else {
-                    finish = track_fast_backward(track, finish, 0.5 * (total - bound));
+                    bound = score;
                 }
-            } else {
-                finish = track_fast_backward(track, finish, leg2 - circuit_bound);
             }
         }
     }
