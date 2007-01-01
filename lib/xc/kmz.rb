@@ -24,7 +24,7 @@ module XC
       from = @turnpoints[from]
       to = @turnpoints[to]
       leg = from.distance_to(to)
-      ["#{from.name} - #{to.name}", format % [hints.units[:distance][leg], 100.0 * leg / @distance]]
+      ["#{from.name} \xe2\x86\x92 #{to.name}", format % [hints.units[:distance][leg], 100.0 * leg / @distance]]
     end
 
     def to_kmz(hints, folder_options = {})
