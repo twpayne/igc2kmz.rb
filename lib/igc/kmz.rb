@@ -633,8 +633,7 @@ class IGC
   end
 
   def make_time_marks_folder(hints, periods)
-    folder = KML::Folder.new(:name => "#{periods[-1].period / 60} minute", :visibility => 0, :styleUrl => hints.stock.check_hide_children_style.url)
-    folder.add(@fixes[0].to_kml(hints, :time, {:altitudeMode => hints.altitude_mode}, *periods[0].children))
+    marks = []
     time = @fixes[0].time
     min_period = periods[-1].period
     time += min_period - (60 * time.min + time.sec) % min_period
@@ -643,15 +642,22 @@ class IGC
         periods.each do |period|
           if (60 * time.min + time.sec) % period.period == 0
             name = time.to_time(hints,"%H:%M")
-            folder.add(fix.to_kml(hints, name, {:altitudeMode => hints.altitude_mode}, *period.children))
+            marks << fix.to_kml(hints, name, {:altitudeMode => hints.altitude_mode}, *period.children)
             break
           end
         end
         time += min_period
       end
     end
-    folder.add(@fixes[-1].to_kml(hints, :time, {:altitudeMode => hints.altitude_mode}, *periods[0].children))
-    KMZ.new(folder)
+    if marks.empty?
+      KMZ.new
+    else
+      folder = KML::Folder.new(:name => "#{periods[-1].period / 60} minute", :visibility => 0, :styleUrl => hints.stock.check_hide_children_style.url)
+      folder.add(@fixes[0].to_kml(hints, :time, {:altitudeMode => hints.altitude_mode}, *periods[0].children))
+      marks.each(&folder.method(:add))
+      folder.add(@fixes[-1].to_kml(hints, :time, {:altitudeMode => hints.altitude_mode}, *periods[0].children))
+      KMZ.new(folder)
+    end
   end
 
   def time_marks_folder(hints)
