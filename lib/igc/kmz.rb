@@ -381,6 +381,7 @@ class IGC
       hints = OpenStruct.new
       hints.color = KML::Color.color("red")
       hints.complexity = 4
+      hints.league = XC::Open
       hints.photo_tz_offset = 0
       hints.photos = []
       hints.stock = stock
@@ -452,7 +453,7 @@ class IGC
     end
     hints.igc = self
     hints.altitude_mode = altitude_data? ? :absolute : nil
-    hints.xcs = hints.league.optimize(@fixes, hints.complexity) unless hints.task
+    hints.xcs = hints.league.optimize(@fixes, hints.complexity) if !hints.task and hints.league
     hints.scales = OpenStruct.new
     hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, hints.units[:altitude])
     hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, hints.units[:climb])
