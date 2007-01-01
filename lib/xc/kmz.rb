@@ -8,9 +8,9 @@ module XC
   class Turnpoint
 
     def to_kml(hints)
-      point = KML::Point.new(:coordinates => self, :altitudeMode => :absolute, :extrude => 1)
+      point = KML::Point.new(:coordinates => self, :altitudeMode => hints.altitude_mode, :extrude => 1)
       statistics = []
-      statistics << ["Altitude", hints.units[:altitude][@alt]]
+      statistics << ["Altitude", hints.units[:altitude][@alt]] if hints.igc.altitude_data?
       statistics << ["Time", @time.to_time(hints)]
       description = KML::Description.new(KML::CData.new(statistics.to_html_table))
       KML::Placemark.new(point, description, :name => @name, :snippet => "", :styleUrl => hints.stock.xc_style.url)

@@ -47,7 +47,6 @@ class IGC
   attr_reader :security_code
   attr_reader :bsignature
   attr_reader :unknowns
-  attr_reader :altitude_data
 
   HEADERS = {
     "CCL" => :competition_class,
@@ -143,7 +142,10 @@ class IGC
       @altitude_data = false
     end
     @times = @fixes.collect(&:time).collect!(&:to_i)
-    raise unless @altitude_data
+  end
+
+  def altitude_data?
+    @altitude_data
   end
 
   def fix_at(time)

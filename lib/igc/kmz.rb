@@ -411,30 +411,32 @@ class IGC
     rows << ["Take off time", @fixes[0].time.to_time(hints)]
     rows << ["Landing time", @fixes[-1].time.to_time(hints)]
     rows << ["Duration", (@fixes[-1].time - @fixes[0].time).to_duration]
-    rows << ["Take off altitude", hints.units[:altitude][@fixes[0].alt]]
-    rows << ["Maximum altitude", hints.units[:altitude][@bounds.alt.last]]
-    rows << ["Maximum altitude above take off", hints.units[:altitude][@bounds.alt.last - @fixes[0].alt]]
-    rows << ["Minimum altitude", hints.units[:altitude][@bounds.alt.first]]
-    max_alt_gain = 0
-    min_alt = max_alt = @fixes[0].alt
-    @fixes.each do |fix|
-      if fix.alt < min_alt
-        min_alt = fix.alt
-      elsif fix.alt > max_alt
-        max_alt = fix.alt
-        alt_gain = max_alt - min_alt
-        max_alt_gain = alt_gain if alt_gain > max_alt_gain
+    if altitude_data?
+      rows << ["Take off altitude", hints.units[:altitude][@fixes[0].alt]]
+      rows << ["Maximum altitude", hints.units[:altitude][@bounds.alt.last]]
+      rows << ["Maximum altitude above take off", hints.units[:altitude][@bounds.alt.last - @fixes[0].alt]]
+      rows << ["Minimum altitude", hints.units[:altitude][@bounds.alt.first]]
+      max_alt_gain = 0
+      min_alt = max_alt = @fixes[0].alt
+      @fixes.each do |fix|
+        if fix.alt < min_alt
+          min_alt = fix.alt
+        elsif fix.alt > max_alt
+          max_alt = fix.alt
+          alt_gain = max_alt - min_alt
+          max_alt_gain = alt_gain if alt_gain > max_alt_gain
+        end
       end
+      rows << ["Maximum altitude gain", hints.units[:altitude][max_alt_gain]]
+      sum_alt_gain = 0
+      @fixes.each_cons(2) do |fix0, fix1|
+        change = fix1.alt - fix0.alt
+        sum_alt_gain += change if change > 0
+      end
+      rows << ["Accumulated altitude gain", hints.units[:altitude][sum_alt_gain]]
+      rows << ["Maximum climb", hints.units[:climb][@bounds.climb.last]]
+      rows << ["Maximum sink", hints.units[:climb][@bounds.climb.first]]
     end
-    rows << ["Maximum altitude gain", hints.units[:altitude][max_alt_gain]]
-    sum_alt_gain = 0
-    @fixes.each_cons(2) do |fix0, fix1|
-      change = fix1.alt - fix0.alt
-      sum_alt_gain += change if change > 0
-    end
-    rows << ["Accumulated altitude gain", hints.units[:altitude][sum_alt_gain]]
-    rows << ["Maximum climb", hints.units[:climb][@bounds.climb.last]]
-    rows << ["Maximum sink", hints.units[:climb][@bounds.climb.first]]
     rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
     KML::Description.new(KML::CData.new(rows.to_html_table))
   end
@@ -449,6 +451,7 @@ class IGC
       hints.bounds = @bounds
     end
     hints.igc = self
+    hints.altitude_mode = altitude_data? ? :absolute : nil
     hints.xcs = hints.league.optimize(@fixes, hints.complexity) unless hints.task
     hints.scales = OpenStruct.new
     hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, hints.units[:altitude])
@@ -467,12 +470,12 @@ class IGC
     kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(@filename), KML::Open.new(1))
     kmz.merge_sibling(hints.stock.kmz)
     kmz.merge_sibling(track_log_folder(hints))
-    kmz.merge_sibling(shadow_folder(hints))
+    kmz.merge_sibling(shadow_folder(hints)) if altitude_data?
     kmz.merge_sibling(photos_folder(hints)) if hints.photos
     kmz.merge_sibling(xc_folder(hints)) if hints.xcs
     kmz.merge_sibling(competition_folder(hints)) if hints.task
-    kmz.merge_sibling(altitude_marks_folder(hints))
-    kmz.merge_sibling(thermals_and_glides_folder(hints))
+    kmz.merge_sibling(altitude_marks_folder(hints)) if altitude_data?
+    kmz.merge_sibling(thermals_and_glides_folder(hints)) if altitude_data?
     kmz.merge_sibling(time_marks_folder(hints))
     kmz.merge_sibling(graphs_folder(hints))
     kmz.merge_sibling(hints.sponsor.to_kmz(hints)) if hints.sponsor
@@ -494,7 +497,7 @@ class IGC
     end
     discrete_values = values.collect(&scale.method(:discretize))
     discrete_values.segment(false).each do |range|
-      line_string = KML::LineString.new(:coordinates => @fixes[range], :altitudeMode => :absolute)
+      line_string = KML::LineString.new(:coordinates => @fixes[range], :altitudeMode => hints.altitude_mode)
       style_url = KML::StyleUrl.new(styles[discrete_values[range.first]].url)
       placemark = KML::Placemark.new(style_url, line_string)
       folder.add(placemark)
@@ -515,10 +518,14 @@ class IGC
   def track_log_folder(hints)
     kmz = KMZ.new(KML::Folder.new(:name => "Track log", :open => 1, :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.invisible_none_folder)
-    kmz.merge(make_colored_track_log(hints, @fixes.collect(&:alt), hints.scales.altitude))
-    kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
-    kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
-    kmz.merge(make_monochromatic_track_log(hints, hints.color, hints.width, :absolute, :name => "Solid color", :visibility => 0))
+    if altitude_data?
+      kmz.merge(make_colored_track_log(hints, @fixes.collect(&:alt), hints.scales.altitude))
+      kmz.merge(make_colored_track_log(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
+      kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
+    else
+      kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), hints.scales.speed))
+    end
+    kmz.merge(make_monochromatic_track_log(hints, hints.color, hints.width, hints.altitude_mode, :name => "Solid color", :visibility => 0))
   end
 
   def shadow_folder(hints)
@@ -626,7 +633,7 @@ class IGC
 
   def make_time_marks_folder(hints, periods)
     folder = KML::Folder.new(:name => "#{periods[-1].period / 60} minute", :visibility => 0, :styleUrl => hints.stock.check_hide_children_style.url)
-    folder.add(@fixes[0].to_kml(hints, :time, {:altitudeMode => :absolute}, *periods[0].children))
+    folder.add(@fixes[0].to_kml(hints, :time, {:altitudeMode => hints.altitude_mode}, *periods[0].children))
     time = @fixes[0].time
     min_period = periods[-1].period
     time += min_period - (60 * time.min + time.sec) % min_period
@@ -635,14 +642,14 @@ class IGC
         periods.each do |period|
           if (60 * time.min + time.sec) % period.period == 0
             name = time.to_time(hints,"%H:%M")
-            folder.add(fix.to_kml(hints, name, {:altitudeMode => :absolute}, *period.children))
+            folder.add(fix.to_kml(hints, name, {:altitudeMode => hints.altitude_mode}, *period.children))
             break
           end
         end
         time += min_period
       end
     end
-    folder.add(@fixes[-1].to_kml(hints, :time, {:altitudeMode => :absolute}, *periods[0].children))
+    folder.add(@fixes[-1].to_kml(hints, :time, {:altitudeMode => hints.altitude_mode}, *periods[0].children))
     KMZ.new(folder)
   end
 
@@ -692,7 +699,7 @@ class IGC
         label = object.label
       end
       name = "#{label} #{(fix.time + hints.tz_offset).strftime("%H:%M:%S")}"
-      folder.add(fix.to_kml(hints, name, {:altitudeMode => :absolute, :extrude => 1}, :styleUrl => hints.stock.task_style.url, :visibility => 0))
+      folder.add(fix.to_kml(hints, name, {:altitudeMode => hints.altitude_mode}, :styleUrl => hints.stock.task_style.url, :visibility => 0))
       index += 1
       break if index == task.course.length
     end
@@ -724,8 +731,10 @@ class IGC
   def graphs_folder(hints)
     kmz = KMZ.new(KML::Folder.new(:name => "Graphs", :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.visible_none_folder)
-    kmz.merge(make_graph(hints, @fixes.collect(&:alt), hints.scales.altitude, :visibility => 0))
-    kmz.merge(make_graph(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
+    if altitude_data?
+      kmz.merge(make_graph(hints, @fixes.collect(&:alt), hints.scales.altitude, :visibility => 0))
+      kmz.merge(make_graph(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
+    end
     kmz.merge(make_graph(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
   end
 
