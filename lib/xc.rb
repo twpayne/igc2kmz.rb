@@ -111,7 +111,7 @@ module XC
   end
 
   league :Open, "Open distance", 0.0, "Start", "TP%d", "Finish", {
-    :Open0 => { :turnpoints => 0, :type => "Open Distance" },
+    :Open0 => { :turnpoints => 0, :type => "Open distance", :multiplier => 0.0 },
   }
 
   league :FRCFD, "Coupe F\xc3\xa9d\xc3\xa9rale de Distance (France)", 15000.0, "BD", "B%d", "BA", {
