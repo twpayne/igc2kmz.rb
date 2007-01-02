@@ -661,7 +661,6 @@ class IGC
   end
 
   def time_marks_folder(hints)
-    folder = KML::Folder.new(:name => "Time marks", :styleUrl => hints.stock.radio_folder_style.url)
     styles = []
     period_struct = Struct.new(:period, :children)
     periods = [[3600, 27, 0], [1800, 27, 0], [900, 26, 1], [300, 25, 2], [60, 24, 3]].collect do |period, icon, label_scale_index|
@@ -671,11 +670,12 @@ class IGC
       styles << style
       period_struct.new(period, [{:styleUrl => style.url}])
     end
-    kmz = KMZ.new(folder, :roots => styles)
-    (periods.length - 1).downto(0) do |index|
+    kmz = KMZ.new(KML::Folder.new(:name => "Time marks", :styleUrl => hints.stock.radio_folder_style.url), :roots => styles)
+    kmz.merge(hints.stock.visible_none_folder)
+    periods.each_index do |index|
       kmz.merge(make_time_marks_folder(hints, periods[0..index]))
     end
-    kmz.merge(hints.stock.visible_none_folder)
+    kmz
   end
 
   def xc_folder(hints)
