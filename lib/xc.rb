@@ -110,7 +110,7 @@ module XC
 
   end
 
-  league :Open, "Open distance", 0.0, "Start", "TP%d", "Finish", {
+  league :Open, nil, 0.0, "Start", "TP%d", "Finish", {
     :Open0 => { :turnpoints => 0, :type => "Open distance", :multiplier => 0.0 },
   }
 

@@ -405,7 +405,7 @@ class IGC
     end
     if hints.xcs and !hints.xcs.empty?
       xc = hints.xcs.sort_by(&:score)[-1]
-      rows << ["Cross country league", xc.league.description]
+      rows << ["Cross country league", xc.league.description] if xc.league.description
       rows << ["Cross country type", xc.type]
       rows << ["Cross country distance", (xc.multiplier.zero? ? "%s" : "%s (%.1f points)") % [hints.units[:distance][xc.distance], xc.score]]
     end

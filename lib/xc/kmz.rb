@@ -30,7 +30,7 @@ module XC
     def to_kmz(hints, folder_options = {})
       name = (multiplier.zero? ? "%s (%s)" : "%s (%s, %.1f points)") % [type, hints.units[:distance][distance], score]
       rows = []
-      rows << ["League", @league.description]
+      rows << ["League", @league.description] if @league.description
       rows << ["Type", type]
       if circuit?
         if @turnpoints.length == 4
