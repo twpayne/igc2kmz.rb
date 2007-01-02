@@ -78,8 +78,8 @@ class IGC
         s0 = s[0]
       else
         k = (t0 - @fixes[i0 - 1].time) / (@fixes[i0].time - @fixes[i0 - 1].time)
-        z0 = k * @fixes[i0 - 1].alt + (1.0 - k) * @fixes[i0].alt
-        s0 = k * s[i0 - 1] + (1.0 - k) * s[i0]
+        z0 = (1.0 - k) * @fixes[i0 - 1].alt + k * @fixes[i0].alt
+        s0 = (1.0 - k) * s[i0 - 1] + k * s[i0]
       end
       t1 = t0 + dt
       i1 += 1 while i1 < n and @fixes[i1].time < t1
@@ -88,8 +88,8 @@ class IGC
         s1 = s[-1]
       else
         k = (t1 - @fixes[i1 - 1].time) / (@fixes[i1].time - @fixes[i1 - 1].time)
-        z1 = k * @fixes[i1 - 1].alt + (1.0 - k) * @fixes[i1].alt
-        s1 = k * s[i1 - 1] + (1.0 - k) * s[i1]
+        z1 = (1.0 - k) * @fixes[i1 - 1].alt + k * @fixes[i1].alt
+        s1 = (1.0 - k) * s[i1 - 1] + k * s[i1]
       end
       Average.new(s1 - s0, z1 - z0, dt)
     end
