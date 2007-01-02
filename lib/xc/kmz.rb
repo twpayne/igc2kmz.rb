@@ -49,7 +49,7 @@ module XC
       end
       unless multiplier.zero?
         rows << ["Total", hints.units[:distance][@distance]]
-        rows << ["Multiplier", "\xc3\x97 %.1f/km" % multiplier]
+        rows << ["Multiplier", "\xc3\x97 %.1f points/km" % multiplier]
         rows << ["Score", "<b>%.1f points</b>" % @score]
       end
       rows << make_row(hints, -1, 0, "%s") if circuit?
