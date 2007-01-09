@@ -1,7 +1,9 @@
 #include <ruby.h>
 #include <math.h>
 #include <stdio.h>
+#include <sys/times.h>
 #include <time.h>
+#include <unistd.h>
 
 #define p(rb_value) rb_funcall(rb_mKernel, rb_intern("p"), 1, (rb_value))
 
@@ -55,6 +57,22 @@ static inline int track_last_at_least(const track_t *track, int i, int begin, in
 static track_t *track_new(VALUE rb_league, VALUE rb_fixes) __attribute__ ((malloc));
 static track_t *track_downsample(track_t *track, double threshold) __attribute__ ((malloc));
 void Init_cxc(void);
+
+static void benchmark(const char *label, struct tms *buf)
+{
+    struct tms now;
+    static int clk_tck = 0;
+    if (!clk_tck)
+	clk_tck = sysconf(_SC_CLK_TCK);
+    times(&now);
+    if (label) {
+	double utime = now.tms_utime - buf->tms_utime;
+	if (utime < 0)
+	    utime += (unsigned) -1;
+	fprintf(stderr, "%s: cpu=%.3fs\n", label,  utime / clk_tck);
+    }
+    *buf = now;
+}
 
 static inline VALUE
 rb_ary_push_unless_nil(VALUE rb_self, VALUE rb_value)
@@ -551,7 +569,6 @@ track_triangle(const track_t *track, double bound, time_t *times)
     return bound;
 }
 
-#if 0
 static double
 track_triangle_fai(const track_t *track, double bound, time_t *times)
 {
@@ -618,7 +635,6 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
     track_indexes_to_times(track, 5, indexes, times);
     return bound;
 }
-#endif
 
 static double
 track_quadrilateral(const track_t *track, double bound, time_t *times)
@@ -700,22 +716,29 @@ rb_XC_FRCFD_optimize(VALUE rb_self, VALUE rb_fixes, VALUE rb_complexity)
         track_out_and_return(track, 15.0 / R, times);
         rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit2", 4, times));
         if (5 <= complexity) {
-            /*time_t times_fai[5];*/
-            track_t *downsampled_track = track_downsample(track, 0.1 / R);
-            track_compute_circuit_tables(downsampled_track, 3.0 / R);
-            bound = 15.0 / R;
-            /*bound = nextafter(track_triangle_fai(downsampled_track, bound, times_fai), 0.0);*/
-            /*bound = track_triangle_fai(track, bound, times_fai);*/
-            /*VALUE rb_triangle_fai = track_rb_new_xc(track, "Circuit3FAI", 5, times);*/
-            bound = track_triangle(downsampled_track, bound, times);
-            /*bound = track_triangle(track, bound, times);*/
-            rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3", 5, times));
-            /*rb_ary_push_unless_nil(rb_result, rb_triangle_fai);*/
-            if (6 <= complexity) {
-                track_quadrilateral(track, 15.0 / R, times);
-                rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit4", 6, times));
-            }
-            track_delete(downsampled_track);
+	    time_t times_fai[5];
+	    time_t downsampled_times_fai[5];
+	    time_t downsampled_times[5];
+	    track_t *downsampled_track = track_downsample(track, 0.1 / R);
+	    track_compute_circuit_tables(downsampled_track, 3.0 / R);
+	    bound = 15.0 / R;
+	    struct tms buf;
+	    benchmark(NULL, &buf);
+	    bound = track_triangle_fai(downsampled_track, bound, downsampled_times_fai);
+	    benchmark("triangle_fai downsampled", &buf);
+	    bound = track_triangle_fai(track, bound, times_fai);
+	    benchmark("triangle_fai", &buf);
+	    bound = track_triangle(downsampled_track, bound, downsampled_times);
+	    benchmark("triangle downsampled", &buf);
+	    bound = track_triangle(track, bound, times);
+	    benchmark("triangle", &buf);
+	    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3", 5, times[0] == -1 ? downsampled_times : times));
+	    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3FAI", 5, times_fai[0] == -1 ? downsampled_times_fai : times_fai));
+	    if (6 <= complexity) {
+		track_quadrilateral(track, 15.0 / R, times);
+		rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit4", 6, times));
+	    }
+	    track_delete(downsampled_track);
         }
     }
     track_delete(track);
