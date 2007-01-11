@@ -680,7 +680,7 @@ class IGC
 
   def xc_folder(hints)
     return KMZ.new if hints.xcs.empty?
-    kmz = KMZ.new(KML::Folder.new(:name => "Cross country", :open => 1, :styleUrl => hints.stock.radio_folder_style.url))
+    kmz = KMZ.new(KML::Folder.new(:name => "Cross country", :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.invisible_none_folder)
     hints.xcs.sort_by(&:score).reverse.each_with_index do |xc, index|
       kmz.merge(xc.to_kmz(hints, :visibility => index.zero? ? nil : 0))
