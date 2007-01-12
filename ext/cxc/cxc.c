@@ -547,7 +547,7 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
         int tp3first = track_first_at_least(track, tp1, tp1 + 2, finish + 1, legbound);
         if (tp3first < 0)
             continue;
-        int tp3last = track_last_at_least(track, tp1, tp1 + 2, finish + 1, legbound);
+        int tp3last = track_last_at_least(track, tp1, tp3first, finish + 1, legbound);
         if (tp3last < 0)
             continue;
         for (tp3 = tp3last; tp3 >= tp3first; ) {
@@ -562,8 +562,8 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
                 --tp3;
                 continue;
             }
-            int tp2last = track_last_at_least(track, tp3, tp1 + 1, tp3, shortestlegbound);
-            if (tp2last < 0 || tp2last < tp2first) {
+            int tp2last = track_last_at_least(track, tp3, tp2first, tp3, shortestlegbound);
+            if (tp2last < 0) {
                 --tp3;
                 continue;
             }
