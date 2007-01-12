@@ -537,8 +537,8 @@ static double
 track_triangle_fai(const track_t *track, double bound, time_t *times)
 {
     int indexes[5] = { -1, -1, -1, -1, -1 };
-    int tp1, tp2, tp3;
     double legbound = 0.28 * bound;
+    int tp1;
     for (tp1 = 0; tp1 < track->n - 2; ++tp1) {
         int start = track->best_start[tp1];
         int finish = track->last_finish[start];
@@ -550,6 +550,7 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
         int tp3last = track_last_at_least(track, tp1, tp3first, finish + 1, legbound);
         if (tp3last < 0)
             continue;
+        int tp3;
         for (tp3 = tp3last; tp3 >= tp3first; ) {
             double leg3 = track_delta(track, tp3, tp1);
             if (leg3 < legbound) {
@@ -568,6 +569,7 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
                 continue;
             }
             double longestlegbound = 0.44 * leg3 / 0.28;
+            int tp2;
             for (tp2 = tp2first; tp2 <= tp2last; ) {
                 double d = 0.0;
                 double leg1 = track_delta(track, tp1, tp2);
