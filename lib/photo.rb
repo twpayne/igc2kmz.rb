@@ -10,7 +10,7 @@ class Photo
     if @uri.scheme
       @uri.open do |io|
         case io.content_type.downcase
-        when "image/jpeg" then @jpeg = EXIFR::JPEG.new(io)
+        when "image/jpeg", nil then @jpeg = EXIFR::JPEG.new(io)
         else raise "unsupported content type #{io.content_type}"
         end
       end
