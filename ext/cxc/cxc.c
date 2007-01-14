@@ -622,8 +622,114 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
 static double
 track_quadrilateral(const track_t *track, double bound, time_t *times)
 {
+    int n = 0;
     int indexes[6] = { -1, -1, -1, -1, -1, -1 };
-    /* FIXME */
+    int tp1;
+    double legbound = 0.15 * bound;
+    for (tp1 = 0; tp1 < track->n - 3; ++tp1) {
+        int start = track->best_start[tp1];
+        int finish = track->last_finish[start];
+        if (finish < 0)
+            continue;
+        int tp4first = track_first_at_least(track, tp1, tp1 + 2, finish + 1, legbound);
+        if (tp4first < 0)
+            continue;
+        int tp4last = track_last_at_least(track, tp1, tp4first, finish + 1, legbound);
+        if (tp4last < 0)
+            continue;
+        int tp4;
+        for (tp4 = tp4last; tp4 >= tp4first; ) {
+            double leg4 = track_delta(track, tp4, tp1);
+            if (leg4 < legbound) {
+                tp4 = track_fast_backward(track, tp4, legbound - leg4);
+                continue;
+            }
+            double shortestlegbound = 0.15 * leg4 / (1.0 - 3 * 0.15);
+            int tp2first = track_first_at_least(track, tp1, tp1 + 1, tp4 - 1, shortestlegbound);
+            if (tp2first < 0) {
+                --tp4;
+                continue;
+            }
+            int tp3last = track_last_at_least(track, tp4, tp2first + 1, tp4, shortestlegbound);
+            if (tp3last < 0) {
+                --tp4;
+                continue;
+            }
+            int tp2last = track_last_at_least(track, tp4, tp2first + 1, tp3last - 1, shortestlegbound);
+            if (tp2last < 0) {
+                --tp4;
+                continue;
+            }
+            double longestlegbound = (1.0 - 3 * 0.15) * leg4 / 0.15;
+            int tp2;
+            for (tp2 = tp2first; tp2 <= tp2last; ) {
+                double leg1 = track_delta(track, tp1, tp2);
+                double shortestlegbound2 = 0.15 * (leg1 + leg4) / (1.0 - 2 * 0.15);
+                if (shortestlegbound2 > shortestlegbound)
+                    shortestlegbound2 = shortestlegbound;
+                double longestlegbound2 = (1.0 - 3 * 0.15) * (leg1 + leg4) / (2 * 0.15);
+                if (longestlegbound2 < longestlegbound)
+                    longestlegbound2 = longestlegbound;
+                int tp3first = track_first_at_least(track, tp2, tp2 + 1, tp3last + 1, shortestlegbound2);
+                if (tp3first < 0) {
+                    ++tp2;
+                    continue;
+                }
+                int tp3;
+                for (tp3 = tp3last; tp3 >= tp3first; ) {
+                    if (--n < 0) {
+                        fprintf(stderr, "tp1=%4d tp2=%4d tp3=%4d tp4=%4d\r", tp1, tp2, tp3, tp4);
+                        n = 50000;
+                    }
+                    double d = 0.0;
+                    double leg2 = track_delta(track, tp2, tp3);
+                    if (leg2 < shortestlegbound2)
+                        d = shortestlegbound2 - leg2;
+                    if (leg2 > longestlegbound2 && leg2 - longestlegbound2 > d)
+                        d = leg2 - longestlegbound2;
+                    double leg3 = track_delta(track, tp3, tp4);
+                    if (leg3 < shortestlegbound2 && shortestlegbound2 - leg3 > d)
+                        d = shortestlegbound2 - leg3;
+                    if (leg3 > longestlegbound2 && leg3 - longestlegbound2 > d)
+                        d = leg3 - longestlegbound2;
+                    if (d > 0.0) {
+                        tp3 = track_fast_backward(track, tp3, d);
+                        continue;
+                    }
+                    double total = leg1 + leg2 + leg3 + leg4;
+                    double thislegbound = 0.15 * total;
+                    if (leg1 < thislegbound)
+                        d = thislegbound - leg1;
+                    if (leg2 < thislegbound && thislegbound - leg2 > d)
+                        d = thislegbound - leg2;
+                    if (leg3 < thislegbound && thislegbound - leg3 > d)
+                        d = thislegbound - leg3;
+                    if (leg4 < thislegbound && thislegbound - leg4 > d)
+                        d = thislegbound - leg4;
+                    if (d > 0.0) {
+                        tp3 = track_fast_backward(track, tp3, 0.5 * d);
+                        continue;
+                    }
+                    if (total < bound) {
+                        tp3 = track_fast_backward(track, tp3, 0.5 * (bound - total));
+                        continue;
+                    }
+                    bound = total;
+                    legbound = thislegbound;
+                    indexes[0] = start;
+                    indexes[1] = tp1;
+                    indexes[2] = tp2;
+                    indexes[3] = tp3;
+                    indexes[4] = tp4;
+                    indexes[5] = finish;
+                    --tp3;
+                }
+                ++tp2;
+            }
+            --tp4;
+        }
+    }
+    track_circuit_close(track, 6, indexes, 3.0 / R);
     track_indexes_to_times(track, 6, indexes, times);
     return bound;
 }
@@ -699,26 +805,39 @@ rb_XC_FRCFD_optimize(VALUE rb_self, VALUE rb_fixes, VALUE rb_complexity)
         track_out_and_return(track, 15.0 / R, times);
         rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit2", 4, times));
         if (5 <= complexity) {
-            time_t times_fai[5];
-            time_t downsampled_times_fai[5];
-            time_t downsampled_times[5];
-            track_t *downsampled_track = track_downsample(track, 0.1 / R);
+            time_t times_fai[5] = { -1 };
+            time_t downsampled_times_fai[5] = { -1 };
+            time_t downsampled_times[5] = { -1 };
+            track_t *downsampled_track = track_downsample(track, 0.5 / R);
             track_compute_circuit_tables(downsampled_track, 3.0 / R);
-            bound = 15.0 / R;
             struct tms buf;
             benchmark(NULL, &buf);
-            bound = track_triangle_fai(downsampled_track, bound, downsampled_times_fai);
+            bound = track_triangle_fai(downsampled_track, 15.0 / R, downsampled_times_fai);
             benchmark("triangle_fai downsampled", &buf);
             bound = track_triangle_fai(track, bound, times_fai);
             benchmark("triangle_fai", &buf);
+            if (times_fai[0] == -1)
+                memcpy(times_fai, downsampled_times_fai, sizeof times_fai);
+            VALUE rb_circuit3fai = track_rb_new_xc(track, "Circuit3FAI", 5, times_fai);
             bound = track_triangle(downsampled_track, bound, downsampled_times);
             benchmark("triangle downsampled", &buf);
             bound = track_triangle(track, bound, times);
             benchmark("triangle", &buf);
-            rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3", 5, times[0] == -1 ? downsampled_times : times));
-            rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3FAI", 5, times_fai[0] == -1 ? downsampled_times_fai : times_fai));
+            if (times[0] == -1)
+                memcpy(times, downsampled_times[0] == -1 ? times_fai : downsampled_times, sizeof times);
+            rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3", 5, times));
+            rb_ary_push_unless_nil(rb_result, rb_circuit3fai);
             if (6 <= complexity) {
-                track_quadrilateral(track, 15.0 / R, times);
+                bound = track_quadrilateral(downsampled_track, 15.0 / R, downsampled_times);
+                benchmark("quadrilateral downsampled", &buf);
+#if 0
+                bound = track_quadrilateral(track, bound, times);
+                benchmark("quadrilateral downsampled", &buf);
+#else
+                times[0] = -1;
+#endif
+                if (times[0] == -1)
+                    memcpy(times, downsampled_times, sizeof times);
                 rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit4", 6, times));
             }
             track_delete(downsampled_track);
