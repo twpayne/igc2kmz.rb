@@ -1,0 +1,71 @@
+#!/usr/bin/ruby
+
+require "hpricot"
+require "net/http"
+require "open-uri"
+require "optparse"
+require "uri"
+require "yaml"
+
+def main(args)
+  uris = []
+  year = nil
+  OptionParser.new do |op|
+    op.on("-a", "--all") do
+      uris << "http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdSmartList.php?pTitle=Liste%20de%20tous%20les%20vols&pTypeList=all"
+    end
+    op.on("-l", "--last") do
+      uris << "http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdListLast.php"
+    end
+    op.on("-y", "--year YEAR", Integer) do |arg|
+      year = arg
+    end
+    op.parse!(args)
+  end
+  uris.concat(args)
+  Net::HTTP.start("www.ffvl.fr") do |http|
+    header = {}
+    if year
+      http.request_get("/Competition/Parapente/cfd_pp/cfd/cfd.php?cfdYear=#{year}") do |response|
+        header["Cookie"] = response["set-cookie"]
+      end
+    end
+    uris.each do |arg|
+      uri = URI.parse(arg)
+      http.request_get("#{uri.path}?#{uri.query}", header) do |response|
+        Hpricot(response.body).search("//table/tr").each do |tr|
+          tds = tr.search("/td")
+          next unless tds.size == 12
+          a = tds[9].at("/a[@href]")
+          next unless a
+          href = a["href"]
+          md = /pIgcFile=([^&]*)/.match(href)
+          next unless md
+          meta = {"Trace GPS" => md[1]}
+          unless FileTest.exist?(meta["Trace GPS"])
+            open(uri + href.sub(/^igcShow/, "getIgcFile")) do |igc|
+              File.open(meta["Trace GPS"], "w") do |file|
+                file.write(igc.read)
+              end
+            end
+          end
+          {"Nom du pilote" => 0, "Club" => 1, "Date du vol" => 2, "Dep." => 4}.each do |key, index|
+            meta[key] = tds[index].at("/a").inner_html
+          end
+          md = /(\d+)\/(\d+)\/(\d+)/.match(meta["Date du vol"])
+          meta["Date du vol"] = Date.new(md[3].to_i, md[2].to_i, md[1].to_i)
+          {"Type de vol" => 3, "Decollage" => 5, "Atterissage" => 6, "Balises" => 7, "Dist." => 10, "Points" => 11}.each do |key, index|
+            meta[key] = tds[index].inner_html
+          end
+          meta["Dist."] = meta["Dist."].to_f
+          meta["Points"] = meta["Points"].to_f
+          File.open(File.basename(meta["Trace GPS"], ".igc") + ".cfd", "w") do |file|
+            file.write(meta.to_yaml)
+          end
+        end
+      end
+    end
+  end
+end
+
+main(ARGV) if $0 == __FILE__
