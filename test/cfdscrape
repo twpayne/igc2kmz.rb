@@ -32,7 +32,7 @@ def main(args)
     end
     uris.each do |arg|
       uri = URI.parse(arg)
-      http.request_get("#{uri.path}?#{uri.query}", header) do |response|
+      http.request_get(uri.request_uri, header) do |response|
         Hpricot(response.body).search("//table/tr").each do |tr|
           tds = tr.search("/td")
           next unless tds.size == 12
