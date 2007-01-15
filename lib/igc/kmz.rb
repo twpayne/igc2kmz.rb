@@ -578,12 +578,54 @@ class IGC
     label_style = KML::LabelStyle.new(KML::Color.new("ffff3300"), :scale => LABEL_SCALES[2])
     line_style = KML::LineStyle.new(KML::Color.new("88ff3300"), :width => 4)
     glide_style = KML::Style.new(icon_style, label_style, line_style)
+    if hints.xcs
+      turnpoints = hints.xcs.sort_by(&:score)[-1].turnpoints
+    elsif hints.task
+      index = 0
+      index += 1 while hints.task.course[index].is_a?(Task::TakeOff)
+      object = hints.task.course[index]
+      turnpoints = []
+      @fixes.each_cons(2) do |fix0, fix1|
+        fix = object.intersect?(fix0, fix1)
+        next unless fix
+        turnpoints << fix
+        index += 1
+        break if index == hints.task.course.length
+        object = hints.task.course[index]
+      end
+    else
+      turnpoints = []
+    end
     @alt_extremes.each_cons(2) do |extreme0, extreme1|
       dz = extreme1.fix.alt - extreme0.fix.alt
       dt = extreme1.fix.time - extreme0.fix.time
-      ds = extreme0.fix.distance_to(extreme1.fix)
-      point = KML::Point.new(:coordinates => extreme0.fix.halfway_to(extreme1.fix), :altitudeMode => :absolute)
-      line_string = KML::LineString.new(:coordinates => [extreme0.fix, extreme1.fix], :altitudeMode => :absolute)
+      fixes = turnpoints.find_all do |fix|
+        (extreme0.fix.time...extreme1.fix.time).include?(fix.time)
+      end
+      if fixes.empty?
+        ds = extreme0.fix.distance_to(extreme1.fix)
+        point_coord = extreme0.fix.halfway_to(extreme1.fix)
+        coords = [extreme0.fix, extreme1.fix]
+      else
+        coords = [extreme0.fix].concat(fixes).push(extreme1.fix)
+        ds = 0.0
+        coords.each_cons(2) do |coord0, coord1|
+          ds += coord0.distance_to(coord1)
+        end
+        s = ds / 2.0
+        coords.each_cons(2) do |coord0, coord1|
+          dds = coord0.distance_to(coord1)
+          if s < dds
+            point_coord = coord0.destination_at(coord0.initial_bearing_to(coord1), s)
+            point_coord.alt = (1.0 - s / dds) * coord0.alt + (s / dds) * coord1.alt
+            break
+          else
+            s -= dds
+          end
+        end
+      end
+      point = KML::Point.new(:coordinates => point_coord, :altitudeMode => :absolute)
+      line_string = KML::LineString.new(:coordinates => coords, :altitudeMode => :absolute)
       multi_geometry = KML::MultiGeometry.new(point, line_string)
       if extreme0.is_a?(Extreme::Minimum)
         name = "%s at %s" % [hints.units[:altitude][dz], hints.units[:climb][dz.to_f / dt]]
@@ -705,7 +747,7 @@ class IGC
         label = object.label
       end
       name = "#{label} #{(fix.time + hints.tz_offset).strftime("%H:%M:%S")}"
-      folder.add(fix.to_kml(hints, name, {:altitudeMode => hints.altitude_mode}, :styleUrl => hints.stock.task_style.url, :visibility => 0))
+      folder.add(fix.to_kml(hints, name, {:altitudeMode => hints.altitude_mode, :extrude => 1}, :styleUrl => hints.stock.task_style.url, :visibility => 0))
       index += 1
       break if index == task.course.length
     end
