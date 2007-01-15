@@ -308,7 +308,7 @@ end
 class IGC
 
   ICON_SCALE = 0.5
-  LABEL_SCALES = [1.0, Math.sqrt(0.8), Math.sqrt(0.6), Math.sqrt(0.4)]
+  LABEL_SCALES = [1.0, 0.8, 0.6, 0.4].collect(&Math.method(:sqrt))
 
   class Fix
 
