@@ -463,7 +463,7 @@ class IGC
     fields << "#{hints.task.competition} task #{hints.task.number}" if hints.task
     if hints.xcs and !hints.xcs.empty?
       xc = hints.xcs.sort_by(&:score)[-1]
-      fields << "%s %s" % [hints.units[:distance][xc.distance], xc.type.downcase]
+      fields << "%s %s" % [hints.units[:distance][xc.distance], xc.type.sub(/\A[A-Z][a-z]/) { |s| s.downcase }]
     end
     fields << @header[:site] if @header[:site]
     fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
