@@ -507,12 +507,15 @@ static double
 track_triangle(const track_t *track, double bound, time_t *times)
 {
     int indexes[5] = { -1, -1, -1, -1, -1 };
-    int tp1, tp3;
+    int tp1;
     for (tp1 = 0; tp1 < track->n - 1; ++tp1) {
+        if (track->sigma_delta[track->n - 1] - track->sigma_delta[tp1] < bound)
+            break;
         int start = track->best_start[tp1];
         int finish = track->last_finish[start];
-        if (finish < 0)
+        if (finish < 0 || track->sigma_delta[finish] - track->sigma_delta[tp1] < bound)
             continue;
+        int tp3;
         for (tp3 = finish; tp3 > tp1 + 1; --tp3) {
             double leg31 = track_delta(track, tp3, tp1);
             double bound123 = bound - leg31;
@@ -539,7 +542,10 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
     int indexes[5] = { -1, -1, -1, -1, -1 };
     double legbound = 0.28 * bound;
     int tp1;
-    for (tp1 = 0; tp1 < track->n - 2; ++tp1) {
+    int tp1last = track_last_at_least(track, track->n - 1, 0, track->n, legbound);
+    if (tp1last >= 0)
+        tp1last = track_last_at_least(track, tp1last + 1, 0, tp1last, legbound);
+    for (tp1 = 0; tp1 <= tp1last; ++tp1) {
         int start = track->best_start[tp1];
         int finish = track->last_finish[start];
         if (finish < 0)
@@ -604,6 +610,9 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
                 }
                 bound = total;
                 legbound = thislegbound;
+                tp1last = track_last_at_least(track, track->n - 1, 0, track->n, legbound);
+                if (tp1last >= 0)
+                    tp1last = track_last_at_least(track, tp1last + 1, 0, tp1last, legbound);
                 indexes[0] = start;
                 indexes[1] = tp1;
                 indexes[2] = tp2;
