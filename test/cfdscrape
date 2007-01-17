@@ -12,7 +12,7 @@ def main(args)
   year = nil
   OptionParser.new do |op|
     op.on("-a", "--all") do
-      uris << "http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdSmartList.php?pTitle=Liste%20de%20tous%20les%20vols&pTypeList=all"
+      uris << "http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdSmartList.php?&pTypeList=all&pSelect=igcFile+%21%3D+%27%27+"
     end
     op.on("-l", "--last") do
       uris << "http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdListLast.php"
