@@ -26,9 +26,6 @@ def main(argv)
     op.on("-c", "--color COLOR", "Color") do |arg|
       hints.color = KML::Color.color(arg)
     end
-    op.on("-k", "--complexity COMPLEXITY", Integer, "Complexity") do |arg|
-      hints.complexity = arg
-    end
     op.on("-o", "--output FILENAME", String, "Output filename") do |arg|
       output = arg
     end

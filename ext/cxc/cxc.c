@@ -542,10 +542,7 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
     int indexes[5] = { -1, -1, -1, -1, -1 };
     double legbound = 0.28 * bound;
     int tp1;
-    int tp1last = track_last_at_least(track, track->n - 1, 0, track->n, legbound);
-    if (tp1last >= 0)
-        tp1last = track_last_at_least(track, tp1last + 1, 0, tp1last, legbound);
-    for (tp1 = 0; tp1 <= tp1last; ++tp1) {
+    for (tp1 = 0; tp1 < track->n - 2; ++tp1) {
         int start = track->best_start[tp1];
         int finish = track->last_finish[start];
         if (finish < 0)
@@ -610,9 +607,6 @@ track_triangle_fai(const track_t *track, double bound, time_t *times)
                 }
                 bound = total;
                 legbound = thislegbound;
-                tp1last = track_last_at_least(track, track->n - 1, 0, track->n, legbound);
-                if (tp1last >= 0)
-                    tp1last = track_last_at_least(track, tp1last + 1, 0, tp1last, legbound);
                 indexes[0] = start;
                 indexes[1] = tp1;
                 indexes[2] = tp2;
@@ -775,113 +769,92 @@ track_rb_new_xc(const track_t *track, const char *flight, int n, time_t *times)
 }
 
 static VALUE
-rb_XC_Open_optimize(VALUE rb_self, VALUE rb_fixes, VALUE rb_complexity)
+rb_XC_Open_optimize(VALUE rb_self, VALUE rb_fixes)
 {
     VALUE rb_result = rb_ary_new2(1);
     track_t *track = track_new(rb_self, rb_fixes);
-    int complexity = NUM2INT(rb_complexity);
     time_t times[2];
-    if (2 <= complexity) {
-        track_open_distance(track, 0.0, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open0", 2, times));
-    }
+    track_open_distance(track, 0.0, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open0", 2, times));
     track_delete(track);
     return rb_result;
 }
 
 static VALUE
-rb_XC_FRCFD_optimize(VALUE rb_self, VALUE rb_fixes, VALUE rb_complexity)
+rb_XC_FRCFD_optimize(VALUE rb_self, VALUE rb_fixes)
 {
     VALUE rb_result = rb_ary_new2(7);
     track_t *track = track_new(rb_self, rb_fixes);
-    int complexity = NUM2INT(rb_complexity);
     time_t times[6];
     double bound = 0.0;
-    if (2 <= complexity) {
-        bound = track_open_distance(track, bound, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open0", 2, times));
-    }
+    bound = track_open_distance(track, bound, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open0", 2, times));
     if (bound < 15.0 / R)
         bound = 15.0 / R;
-    if (3 <= complexity) {
-        bound = track_open_distance_one_point(track, bound, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open1", 3, times));
-    }
-    if (4 <= complexity) {
-        bound = track_open_distance_two_points(track, bound, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open2", 4, times));
-        track_compute_circuit_tables(track, 3.0 / R);
-        track_out_and_return(track, 15.0 / R, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit2", 4, times));
-        if (5 <= complexity) {
-            time_t times_fai[5] = { -1 };
-            time_t downsampled_times_fai[5] = { -1 };
-            time_t downsampled_times[5] = { -1 };
-            track_t *downsampled_track = track_downsample(track, 0.5 / R);
-            track_compute_circuit_tables(downsampled_track, 3.0 / R);
-            struct tms buf;
-            benchmark(NULL, &buf);
-            bound = track_triangle_fai(downsampled_track, 15.0 / R, downsampled_times_fai);
-            benchmark("triangle_fai downsampled", &buf);
-            bound = track_triangle_fai(track, bound, times_fai);
-            benchmark("triangle_fai", &buf);
-            if (times_fai[0] == -1)
-                memcpy(times_fai, downsampled_times_fai, sizeof times_fai);
-            VALUE rb_circuit3fai = track_rb_new_xc(track, "Circuit3FAI", 5, times_fai);
-            bound = track_triangle(downsampled_track, bound, downsampled_times);
-            benchmark("triangle downsampled", &buf);
-            bound = track_triangle(track, bound, times);
-            benchmark("triangle", &buf);
-            if (times[0] == -1)
-                memcpy(times, downsampled_times[0] == -1 ? times_fai : downsampled_times, sizeof times);
-            rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3", 5, times));
-            rb_ary_push_unless_nil(rb_result, rb_circuit3fai);
-            if (6 <= complexity) {
-                bound = track_quadrilateral(downsampled_track, 15.0 / R, downsampled_times);
-                benchmark("quadrilateral downsampled", &buf);
+    bound = track_open_distance_one_point(track, bound, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open1", 3, times));
+    bound = track_open_distance_two_points(track, bound, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open2", 4, times));
+    track_compute_circuit_tables(track, 3.0 / R);
+    track_out_and_return(track, 15.0 / R, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit2", 4, times));
+    time_t times_fai[5] = { -1 };
+    time_t downsampled_times_fai[5] = { -1 };
+    time_t downsampled_times[5] = { -1 };
+    track_t *downsampled_track = track_downsample(track, 0.5 / R);
+    track_compute_circuit_tables(downsampled_track, 3.0 / R);
+    struct tms buf;
+    benchmark(NULL, &buf);
+    bound = track_triangle_fai(downsampled_track, 15.0 / R, downsampled_times_fai);
+    benchmark("triangle_fai downsampled", &buf);
+    bound = track_triangle_fai(track, bound, times_fai);
+    benchmark("triangle_fai", &buf);
+    if (times_fai[0] == -1)
+        memcpy(times_fai, downsampled_times_fai, sizeof times_fai);
+    VALUE rb_circuit3fai = track_rb_new_xc(track, "Circuit3FAI", 5, times_fai);
+    bound = track_triangle(downsampled_track, bound, downsampled_times);
+    benchmark("triangle downsampled", &buf);
+    bound = track_triangle(track, bound, times);
+    benchmark("triangle", &buf);
+    if (times[0] == -1)
+        memcpy(times, downsampled_times[0] == -1 ? times_fai : downsampled_times, sizeof times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3", 5, times));
+    rb_ary_push_unless_nil(rb_result, rb_circuit3fai);
 #if 0
-                bound = track_quadrilateral(track, bound, times);
-                benchmark("quadrilateral downsampled", &buf);
+    bound = track_quadrilateral(downsampled_track, 15.0 / R, downsampled_times);
+    benchmark("quadrilateral downsampled", &buf);
+#if 0
+    bound = track_quadrilateral(track, bound, times);
+    benchmark("quadrilateral", &buf);
 #else
-                times[0] = -1;
+    times[0] = -1;
 #endif
-                if (times[0] == -1)
-                    memcpy(times, downsampled_times, sizeof times);
-                rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit4", 6, times));
-            }
-            track_delete(downsampled_track);
-        }
-    }
+    if (times[0] == -1)
+        memcpy(times, downsampled_times, sizeof times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit4", 6, times));
+#endif
+    track_delete(downsampled_track);
     track_delete(track);
     return rb_result;
 }
 
 static VALUE
-rb_XC_UKXCL_optimize(VALUE rb_self, VALUE rb_fixes, VALUE rb_complexity)
+rb_XC_UKXCL_optimize(VALUE rb_self, VALUE rb_fixes)
 {
     VALUE rb_result = rb_ary_new2(4);
     track_t *track = track_new(rb_self, rb_fixes);
-    int complexity = NUM2INT(rb_complexity);
     time_t times[5];
     double bound = 0.0;
-    if (2 <= complexity) {
-        bound = track_open_distance(track, bound, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open0", 2, times));
-    }
+    bound = track_open_distance(track, bound, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open0", 2, times));
     if (bound < 15.0 / R)
         bound = 15.0 / R;
-    if (3 <= complexity) {
-        bound = track_open_distance_one_point(track, bound, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open1", 3, times));
-    }
-    if (4 <= complexity) {
-        bound = track_open_distance_two_points(track, bound, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open2", 4, times));
-    }
-    if (5 <= complexity) {
-        bound = track_open_distance_three_points(track, bound, times);
-        rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open3", 5, times));
-    }
+    bound = track_open_distance_one_point(track, bound, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open1", 3, times));
+    bound = track_open_distance_two_points(track, bound, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open2", 4, times));
+    bound = track_open_distance_three_points(track, bound, times);
+    rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Open3", 5, times));
     track_delete(track);
     return rb_result;
 }
@@ -898,9 +871,9 @@ Init_cxc(void)
     VALUE rb_XC = rb_define_module("XC");
     VALUE rb_XC_League = rb_define_class_under(rb_XC, "League", rb_cObject);
     VALUE rb_XC_Open = rb_define_class_under(rb_XC, "Open", rb_XC_League);
-    rb_define_module_function(rb_XC_Open, "optimize", rb_XC_Open_optimize, 2);
+    rb_define_module_function(rb_XC_Open, "optimize", rb_XC_Open_optimize, 1);
     VALUE rb_XC_FRCFD = rb_define_class_under(rb_XC, "FRCFD", rb_XC_League);
-    rb_define_module_function(rb_XC_FRCFD, "optimize", rb_XC_FRCFD_optimize, 2);
+    rb_define_module_function(rb_XC_FRCFD, "optimize", rb_XC_FRCFD_optimize, 1);
     VALUE rb_XC_UKXCL = rb_define_class_under(rb_XC, "UKXCL", rb_XC_League);
-    rb_define_module_function(rb_XC_UKXCL, "optimize", rb_XC_UKXCL_optimize, 2);
+    rb_define_module_function(rb_XC_UKXCL, "optimize", rb_XC_UKXCL_optimize, 1);
 }

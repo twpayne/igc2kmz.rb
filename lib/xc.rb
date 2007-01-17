@@ -1,11 +1,15 @@
 require "coord"
 require "enumerator"
+require "fileutils"
+require "yaml"
 
 module XC
 
   LEAGUES = []
 
   class League
+
+    CACHE_DIRECTORY = File.join("tmp", "xc");
 
     class << self
 
@@ -26,6 +30,33 @@ module XC
         when 0 then const_get(:TURNPOINT_START_NAME)
         when length - 1 then const_get(:TURNPOINT_FINISH_NAME)
         else const_get(:TURNPOINT_NAME) % index
+        end
+      end
+
+      def memoized_optimize(key, fixes)
+        memofile = File.join(CACHE_DIRECTORY, name.split(/::/)[-1], key)
+        if FileTest.exist?(memofile) and !FileTest.zero?(memofile)
+          File.open(memofile) do |file|
+            hash = YAML.load(file)
+            ts = fixes.collect(&:time).collect!(&:to_i)
+            hash.collect do |type, times|
+              turnpoints = times.collect do |time|
+                fixes[ts.find_first_ge(time)]
+              end
+              const_get(type).new(turnpoints)
+            end
+          end
+        else
+          xcs = optimize(fixes)
+          hash = {}
+          xcs.each do |xc|
+            hash[xc.class.name.split(/::/)[-1]] = xc.turnpoints.collect(&:time).collect!(&:to_i)
+          end
+          FileUtils.mkdir_p(File.dirname(memofile))
+          File.open(memofile, "w") do |file|
+            file.write(hash.to_yaml)
+          end
+          xcs
         end
       end
 
