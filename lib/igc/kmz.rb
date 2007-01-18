@@ -467,7 +467,7 @@ class IGC
     fields << @header[:site] if @header[:site]
     fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     snippet = KML::Snippet.new(fields.join(", "))
-    kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(@filename), KML::Open.new(1))
+    kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(hints.name || @filename), KML::Open.new(1))
     kmz.merge_sibling(hints.stock.kmz)
     kmz.merge_sibling(track_log_folder(hints))
     kmz.merge_sibling(shadow_folder(hints)) if altitude_data?
