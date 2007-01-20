@@ -14,8 +14,8 @@
 development:
   adapter: mysql
   database: maximumxc_development
-  username: root
-  password:
+  username: maximumxc
+  password: maximumxc
   host: localhost
 
 # Warning: The database defined as 'test' will be erased and
@@ -24,13 +24,13 @@ development:
 test:
   adapter: mysql
   database: maximumxc_test
-  username: root
-  password:
+  username: maximumxc
+  password: maximumxc
   host: localhost
 
 production:
   adapter: mysql
   database: maximumxc_production
-  username: root
-  password: 
+  username: maximumxc
+  password: maximumxc
   host: localhost
