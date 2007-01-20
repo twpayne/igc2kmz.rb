@@ -1,0 +1,92 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "gpx"
+require "igc"
+require "optparse"
+require "task"
+require "task/gpx"
+
+def main
+  competition = task_number = type = nil
+  window_open_time = nil
+  start_circle_index = nil
+  start_circle_radius = nil
+  start_time = nil
+  end_circle_index = nil
+  end_circle_radius = nil
+  goal_index = -1
+  goal_circle_radius = nil
+  goal_line_length = nil
+  OptionParser.new do |op|
+    op.on("-c", "--competition COMPETITION", String, "Compeition") do |arg|
+      competition = arg
+    end
+    op.on("-n", "--number NUMBER", Integer, "Task number") do |arg|
+      task_number = arg
+    end
+    op.on("-t", "--type TYPE", Task::TYPES.keys, "Type") do |arg|
+      type = arg
+    end
+    op.on("-w", "--window-open TIME", /(\d\d):(\d\d)/, "Window open") do |arg|
+      window_open_time = 3600 * arg[1].to_i + 60 * arg[2].to_i
+    end
+    op.on("-s", "--start-circle-index INDEX", Integer, "Start index") do |arg|
+      start_circle_index = arg
+    end
+    op.on("-S", "--start-circle-radius RADIUS", Integer, "Start radius") do |arg|
+      start_circle_radius = arg
+    end
+    op.on("-T", "--start-time TIME", /(\d\d):(\d\d)/, "Start time") do |arg|
+      start_time = 3600 * arg[1].to_i + 60 * arg[2].to_i
+    end
+    op.on("-e", "--end-circle-index INDEX", Integer, "Start index") do |arg|
+      end_circle_index = arg
+    end
+    op.on("-E", "--end-circle-radius RADIUS", Integer, "End radius") do |arg|
+      end_circle_radius = arg
+    end
+    op.on("-g", "--goal-index INDEX", Integer, "Start index") do |arg|
+      goal_index = arg
+    end
+    op.on("-G", "--goal-circle-radius RADIUS", Integer, "Goal radius") do |arg|
+      goal_circle_radius = arg
+    end
+    op.on("-l", "--goal-line-length LENGTH", Integer, "Goal line length") do |arg|
+      goal_line_length = arg
+    end
+    op.parse!
+  end
+  igc = IGC.new(ARGF)
+  waypoints = igc.route.find_all do |waypoint|
+    not ["TAKEOFF", "LANDING"].include?(waypoint.name)
+  end
+  start_circle_index += waypoints.length if start_circle_index and start_circle_index < 0
+  end_circle_index += waypoints.length if end_circle_index and end_circle_index < 0
+  goal_index += waypoints.length if goal_index < 0
+  last_turnpoint = nil
+  course = waypoints.collect_with_index do |waypoint, index|
+    case index
+    when 0
+      window_open_time = igc.fixes[0].time.to_date.to_time + window_open_time if window_open_time
+      Task::TakeOff.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, nil, window_open_time)
+    when start_circle_index
+      start_time = igc.fixes[0].time.to_date.to_time + start_time if start_time
+      Task::StartOfSpeedSection.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, start_circle_radius, start_time)
+    when end_circle_index
+      Task::EndOfSpeedSection.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, end_circle_radius)
+    when goal_index
+      if goal_line_length
+        Task::GoalLine.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, goal_line_length, waypoint.initial_bearing_to(last_turnpoint) + Math::PI)
+      else
+        Task::GoalCircle.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, goal_circle_radius)
+      end
+    else
+      last_turnpoint = Task::Turnpoint.new(waypoint.lat, waypoint.lon, waypoint.alt, waypoint.name, nil)
+    end
+  end
+  task = Task.new(competition, task_number, type, course)
+  GPX.new(task.to_gpx).write($stdout, 0)
+end
+
+main if $0 == __FILE__
