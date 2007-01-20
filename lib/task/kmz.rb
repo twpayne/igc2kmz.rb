@@ -117,7 +117,7 @@ class Task
   end
 
   def to_kmz(hints, options = {})
-    name = "%s task %d" % [@competition, @number]
+    name = "%s task %d" % [@competition.to_xml, @number]
     snippet = "%s %s" % [hints.units[:distance][@distance], Task::TYPES[@type]]
     folder = KML::Folder.new(KML::Name.new(name), KML::Snippet.new(snippet), KML::StyleUrl.new(hints.stock.check_hide_children_style.url), options)
     object0 = nil
@@ -133,8 +133,8 @@ class Task
           line_string2 = KML::LineString.new(:coordinates => [boundary1.destination_at(bearing - Math::PI / 12.0, 400.0), boundary1, boundary1.destination_at(bearing + Math::PI / 12.0, 400.0)], :tessellate => 1)
           multi_geometry = KML::MultiGeometry.new(point, line_string1, line_string2)
           name = hints.units[:distance][object0.distance_to(object)]
-          description = "%s to %s (%s)" % [object0.name, object.name, hints.units[:distance][object0.distance_to(object)]]
-          placemark = KML::Placemark.new(multi_geometry, :snippet => "", :name => name, :description => description, :styleUrl => hints.stock.task_style.url)
+          description = "%s to %s (%s)" % [object0.name.to_xml, object.name.to_xml, hints.units[:distance][object0.distance_to(object)]]
+          placemark = KML::Placemark.new(multi_geometry, :snippet => "", :name => name, :description => description.to_xml, :styleUrl => hints.stock.task_style.url)
           folder.add(placemark)
         end
         object0 = object
