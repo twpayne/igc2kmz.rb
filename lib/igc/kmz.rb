@@ -393,13 +393,13 @@ class IGC
 
   def make_description(hints)
     rows = []
-    rows << ["Pilot", hints.pilot || @header[:pilot]] if hints.pilot or @header[:pilot]
+    rows << ["Pilot", (hints.pilot || @header[:pilot]).to_xml] if hints.pilot or @header[:pilot]
     rows << ["Date", @fixes[0].time.to_time(hints, "%Y-%m-%d")]
-    rows << ["Site", @header[:site]] if @header[:site]
-    rows << ["Glider", @header[:glider_type]] if @header[:glider_type]
+    rows << ["Site", @header[:site].to_xml] if @header[:site]
+    rows << ["Glider", @header[:glider_type].to_xml] if @header[:glider_type]
     if hints.task
       task = hints.task
-      rows << ["Competition","%s task %d" % [task.competition, task.number]]
+      rows << ["Competition", "%s task %d" % [task.competition.to_xml, task.number]]
       rows << ["Task", "%s %s" % [hints.units[:distance][task.distance], Task::TYPES[task.type]]]
     end
     if hints.xcs and !hints.xcs.empty?
@@ -458,16 +458,16 @@ class IGC
     hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, hints.units[:climb])
     hints.scales.speed = Scale.new("speed", hints.bounds.speed, hints.units[:speed])
     fields = []
-    fields << (hints.pilot || @header[:pilot]) if hints.pilot or @header[:pilot]
-    fields << "#{hints.task.competition} task #{hints.task.number}" if hints.task
+    fields << (hints.pilot || @header[:pilot]).to_xml if hints.pilot or @header[:pilot]
+    fields << "#{hints.task.competition.to_xml} task #{hints.task.number}" if hints.task
     if hints.xcs and !hints.xcs.empty?
       xc = hints.xcs.sort_by(&:score)[-1]
       fields << "%s %s" % [hints.units[:distance][xc.distance], xc.type.sub(/\A[A-Z][a-z]/) { |s| s.downcase }]
     end
-    fields << @header[:site] if @header[:site]
+    fields << @header[:site].to_xml if @header[:site]
     fields << @fixes[0].time.to_time(hints, "%Y-%m-%d")
     snippet = KML::Snippet.new(fields.join(", "))
-    kmz = KMZ.new(make_description(hints), snippet, KML::Name.new(hints.name || @filename), KML::Open.new(1))
+    kmz = KMZ.new(make_description(hints), snippet, KML::Name.new((hints.name || @filename).to_xml), KML::Open.new(1))
     kmz.merge_sibling(hints.stock.kmz)
     kmz.merge_sibling(track_log_folder(hints))
     kmz.merge_sibling(shadow_folder(hints)) if altitude_data?

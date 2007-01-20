@@ -58,6 +58,7 @@ static track_t *track_new(VALUE rb_league, VALUE rb_fixes) __attribute__ ((mallo
 static track_t *track_downsample(track_t *track, double threshold) __attribute__ ((malloc));
 void Init_cxc(void);
 
+#if 0
 static void benchmark(const char *label, struct tms *buf)
 {
     struct tms now;
@@ -73,6 +74,7 @@ static void benchmark(const char *label, struct tms *buf)
     }
     *buf = now;
 }
+#endif
 
 static inline VALUE
 rb_ary_push_unless_nil(VALUE rb_self, VALUE rb_value)
@@ -803,29 +805,21 @@ rb_XC_FRCFD_optimize(VALUE rb_self, VALUE rb_fixes)
     time_t downsampled_times[5] = { -1 };
     track_t *downsampled_track = track_downsample(track, 0.5 / R);
     track_compute_circuit_tables(downsampled_track, 3.0 / R);
-    struct tms buf;
-    benchmark(NULL, &buf);
     bound = track_triangle_fai(downsampled_track, 15.0 / R, downsampled_times_fai);
-    benchmark("triangle_fai downsampled", &buf);
     bound = track_triangle_fai(track, bound, times_fai);
-    benchmark("triangle_fai", &buf);
     if (times_fai[0] == -1)
         memcpy(times_fai, downsampled_times_fai, sizeof times_fai);
     VALUE rb_circuit3fai = track_rb_new_xc(track, "Circuit3FAI", 5, times_fai);
     bound = track_triangle(downsampled_track, bound, downsampled_times);
-    benchmark("triangle downsampled", &buf);
     bound = track_triangle(track, bound, times);
-    benchmark("triangle", &buf);
     if (times[0] == -1)
         memcpy(times, downsampled_times[0] == -1 ? times_fai : downsampled_times, sizeof times);
     rb_ary_push_unless_nil(rb_result, track_rb_new_xc(track, "Circuit3", 5, times));
     rb_ary_push_unless_nil(rb_result, rb_circuit3fai);
 #if 0
     bound = track_quadrilateral(downsampled_track, 15.0 / R, downsampled_times);
-    benchmark("quadrilateral downsampled", &buf);
 #if 0
     bound = track_quadrilateral(track, bound, times);
-    benchmark("quadrilateral", &buf);
 #else
     times[0] = -1;
 #endif

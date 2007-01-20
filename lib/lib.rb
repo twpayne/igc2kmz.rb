@@ -186,6 +186,18 @@ class Range
 
 end
 
+class String
+
+  XML_ENTITIES = { "\"" => "quot", "&" => "amp", "'" => "apos", "<" => "lt", ">" => "gt" }
+
+  def to_xml
+    gsub(/[^\x20-\x21\x23-\x25\x28-\x3b\x3d\x3f-\x7f]/) do |s|
+      "&#{XML_ENTITIES[s] || "#x%x" % s[0]};"
+    end
+  end
+
+end
+
 class Symbol
 
   def to_proc(*args)
