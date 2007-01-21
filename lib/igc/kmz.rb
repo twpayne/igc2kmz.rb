@@ -211,7 +211,7 @@ class Scale
       canvas.g.translate(border.left, border.top) do |scale|
         scale.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none")
         step = make_scale_step(7)
-        unit = step < 1.0 ? @unit : @unit.integer_unit
+        unit = (step * @unit.multiplier) == (step * @unit.multiplier).to_i ? @unit.integer_unit : @unit
         i = (@range.first / step).ceil
         value = step * i
         while value < @range.last
@@ -615,8 +615,7 @@ class IGC
         coords.each_cons(2) do |coord0, coord1|
           dds = coord0.distance_to(coord1)
           if s < dds
-            point_coord = coord0.destination_at(coord0.initial_bearing_to(coord1), s)
-            point_coord.alt = (1.0 - s / dds) * coord0.alt + (s / dds) * coord1.alt
+            point_coord = coord0.interpolate(coord1, s / dds)
             break
           else
             s -= dds

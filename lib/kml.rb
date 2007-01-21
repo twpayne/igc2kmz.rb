@@ -208,8 +208,8 @@ class KML
         super(args.collect(&:to_kml_coord).join("\n"))
       end
 
-      def arc(center, radius, start, stop, decimation = nil)
-        decimation ||= (24.0 * radius / 400.0).to_i
+      def arc(center, radius, start, stop, error = 1.0)
+        decimation = (Math::PI / Math.acos(1.0 - error / radius)).ceil
         stop += 2 * Math::PI while stop < start
         from = (decimation * start / (2.0 * Math::PI)).to_i + 1
         to = (decimation * stop / (2.0 * Math::PI)).to_i
@@ -221,8 +221,8 @@ class KML
         new(*coords)
       end
 
-      def circle(center, radius, alt = nil, decimation = nil)
-        decimation ||= (24.0 * radius / 400.0).to_i
+      def circle(center, radius, alt = nil, error = 1.0)
+        decimation = (Math::PI / Math.acos(1.0 - error / radius)).ceil
         new(*(0..decimation).collect do |i|
           coord = center.destination_at(-2.0 * Math::PI * i / decimation, radius)
           coord.alt = alt if alt
