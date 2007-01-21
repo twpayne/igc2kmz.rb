@@ -211,7 +211,7 @@ class Scale
       canvas.g.translate(border.left, border.top) do |scale|
         scale.styles(:font_family => "Verdana", :font_size => 9, :font_weight => "bold", :stroke => "none")
         step = make_scale_step(7)
-        unit = step < 1.0 ? @unit : @unit.integer_unit
+        unit = (step * @unit.multiplier) == (step * @unit.multiplier).to_i ? @unit.integer_unit : @unit
         i = (@range.first / step).ceil
         value = step * i
         while value < @range.last
