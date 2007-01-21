@@ -19,6 +19,12 @@ class IGC
       @extensions = extensions
     end
 
+    def interpolate(fix, delta)
+      coord = super(fix, delta)
+      return nil unless coord
+      Fix.new(Time.at(((1.0 - delta) * @time.to_f + delta * fix.time.to_f).ceil), coord.lat, coord.lon, coord.alt)
+    end
+
     def method_missing(id, *args)
       extensions[id] or super(id, *args)
     end

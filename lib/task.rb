@@ -48,7 +48,10 @@ class Task
     end
 
     def intersect?(fix0, fix1)
-      radius < distance_to(fix0) and distance_to(fix1) <= radius ? fix1 : nil
+      distance0 = distance_to(fix0)
+      distance1 = distance_to(fix1)
+      return nil unless distance0 > radius and radius >= distance1
+      fix0.interpolate(fix1, (distance0 - radius) / (distance0 - distance1))
     end
 
   end
@@ -73,7 +76,7 @@ class Task
     DEFAULT_RADIUS = 1000
 
     def intersect?(fix0, fix1)
-      distance_to(fix0) <= radius and @start_time <= fix0.time ? fix0 : false
+      @start_time <= fix0.time and distance_to(fix0) > radius and radius >= distance_to(fix1)
     end
 
   end
@@ -81,8 +84,13 @@ class Task
   class StartOfSpeedSection < StartCircle
 
     def intersect?(fix0, fix1)
-      return false if @start_time and fix0.time < @start_time
-      super and fix0
+      distance0 = distance_to(fix0)
+      distance1 = distance_to(fix1)
+      return nil unless distance0 > radius and radius >= distance1
+      delta = (distance0 - radius) / (distance0 - distance1)
+      fix = fix0.interpolate(fix1, (distance0 - radius) / (distance0 - distance1))
+      return nil if fix.time < @start_time
+      fix
     end
 
   end
@@ -110,19 +118,13 @@ class Task
     end
 
     def bounds
-      Bounds.new(:lat => [@left, @right].collect(&:lat).bounds,
-                 :lon => [@left, @right].collect(&:lon).bounds)
+      Bounds.new(:lat => [@left, @right].collect(&:lat).bounds, :lon => [@left, @right].collect(&:lon).bounds)
     end
 
     def intersect?(fix0, fix1)
-      n1 = (fix1.lon - fix0.lon) * (@left.lat - fix0.lat) - (fix1.lat - fix0.lat) * (@left.lon - fix0.lon)
-      return nil if n1.zero?
-      d = (fix1.lat - fix0.lat) * (@right.lon - @left.lon) - (fix1.lon - fix0.lon) * (@right.lat - @left.lat)
-      return nil if d.zero?
-      return nil unless (0.0..1.0).include?(n1 / d)
-      n2 = (@right.lon - @left.lon) * (@left.lat - fix0.lat) - (@right.lat - @left.lat) * (@left.lon - fix0.lon)
-      return nil if n2.zero?
-      (0.0..1.0).include?(n2 / d) ? fix1 : nil
+      intersection = Coord.line_segment_intersection(@left, @right, fix0, fix1)
+      return nil unless intersection
+      fix0.interpolate(fix1, intersection[1])
     end
 
   end

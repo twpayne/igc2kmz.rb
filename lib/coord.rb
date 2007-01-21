@@ -34,6 +34,22 @@ class Coord
     @alt = alt
   end
 
+  class << self
+
+    def line_segment_intersection(coord0, coord1, coord2, coord3)
+      n0 = (coord1.lon - coord0.lon) * (coord2.lat - coord0.lat) - (coord1.lat - coord0.lat) * (coord2.lon - coord0.lon)
+      return nil if n0.zero?
+      d = (coord1.lat - coord0.lat) * (coord3.lon - coord2.lon) - (coord1.lon - coord0.lon) * (coord3.lat - coord2.lat)
+      return nil if d.zero?
+      return nil unless (0.0..1.0).include?(n0 / d)
+      n1 = (coord3.lon - coord2.lon) * (coord2.lat - coord0.lat) - (coord3.lat - coord2.lat) * (coord2.lon - coord0.lon)
+      return nil if n1.zero?
+      return nil unless (0.0..1.0).include?(n1 / d)
+      [n1 / d, n0 / d]
+    end
+
+  end
+
 end
 
 require "ccoord"

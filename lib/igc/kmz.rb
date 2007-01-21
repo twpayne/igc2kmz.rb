@@ -615,8 +615,7 @@ class IGC
         coords.each_cons(2) do |coord0, coord1|
           dds = coord0.distance_to(coord1)
           if s < dds
-            point_coord = coord0.destination_at(coord0.initial_bearing_to(coord1), s)
-            point_coord.alt = (1.0 - s / dds) * coord0.alt + (s / dds) * coord1.alt
+            point_coord = coord0.interpolate(coord1, s / dds)
             break
           else
             s -= dds
