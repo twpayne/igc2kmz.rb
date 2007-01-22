@@ -208,23 +208,23 @@ class KML
         super(args.collect(&:to_kml_coord).join("\n"))
       end
 
-      def arc(center, radius, start, stop, error = 1.0)
-        decimation = (Math::PI / Math.acos(1.0 - error / radius)).ceil
+      def arc(center, radius, start, stop, error = 0.1)
+        decimation = (Math::PI / Math.acos((radius - error) / (radius + error))).ceil
         stop += 2 * Math::PI while stop < start
         from = (decimation * start / (2.0 * Math::PI)).to_i + 1
         to = (decimation * stop / (2.0 * Math::PI)).to_i
-        coords = [center.destination_at(start, radius)]
+        coords = [center.destination_at(start, radius + error)]
         (from..to).each do |i|
-          coords << center.destination_at(2 * Math::PI * i / decimation, radius)
+          coords << center.destination_at(2 * Math::PI * i / decimation, radius + error)
         end 
-        coords << center.destination_at(stop, radius)
+        coords << center.destination_at(stop, radius + error)
         new(*coords)
       end
 
-      def circle(center, radius, alt = nil, error = 1.0)
-        decimation = (Math::PI / Math.acos(1.0 - error / radius)).ceil
+      def circle(center, radius, alt = nil, error = 0.1)
+        decimation = (Math::PI / Math.acos((radius - error) / (radius + error))).ceil
         new(*(0..decimation).collect do |i|
-          coord = center.destination_at(-2.0 * Math::PI * i / decimation, radius)
+          coord = center.destination_at(-2.0 * Math::PI * i / decimation, radius + error)
           coord.alt = alt if alt
           coord
         end)
