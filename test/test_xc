@@ -19,10 +19,14 @@ module Radians
 
 end
 
-class Coord
+module XC
 
-  def to_s
-    "%s %s %dm" % [Radians.to_dmh(@lat, "NNS"), Radians.to_dmh(@lon, "EEW"), @alt]
+  class Turnpoint
+
+    def to_s
+      "%s: %s %s %dm (%s)" % [@name, Radians.to_dmh(@lat, "NNS"), Radians.to_dmh(@lon, "EEW"), @alt, @time.to_s]
+    end
+
   end
 
 end
@@ -42,7 +46,7 @@ def main(argv)
       puts("League-Description: #{xc.league.description}")
       puts("Type: #{xc.type}")
       xc.turnpoints.each do |turnpoint|
-        puts("#{turnpoint.name}: #{turnpoint}")
+        puts(turnpoint)
       end
       puts("Distance: #{xc.distance / 1000.0}km")
       puts("Multiplier: #{xc.multiplier}")
