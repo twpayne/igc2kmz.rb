@@ -17,7 +17,7 @@ class Sponsor
     overlay_xy = KML::OverlayXY.new(:x => 0.5, :y => 1, :xunits => :fraction, :yunits => :fraction)
     screen_xy = KML::ScreenXY.new(:x => 0.5, :y => 1, :xunits => :fraction, :yunits => :fraction)
     size = KML::Size.new(:x => 0, :y => 0, :xunits => :fraction, :yunits => :fraction)
-    screen_overlay = KML::ScreenOverlay.new(name, description, snippet, icon, overlay_xy, screen_xy, size, :snippet => "")
+    screen_overlay = KML::ScreenOverlay.new(name, description, icon, overlay_xy, screen_xy, size, :snippet => "")
     files = {}
     files[img_src] = File.open(@img.to_s) unless @img.scheme
     KMZ.new(screen_overlay, :files => files)
