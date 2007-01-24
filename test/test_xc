@@ -54,6 +54,7 @@ def main(argv)
       if xc.circuit?
         puts("#{xc.turnpoints[-1].name}-#{xc.turnpoints[0].name}: #{xc.turnpoints[0].distance_to(xc.turnpoints[-1]) / 1000.0}km")
       end
+      puts
     end
   end
 end
