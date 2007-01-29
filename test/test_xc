@@ -33,7 +33,11 @@ end
 
 def main(argv)
   league = XC::Open
+  memoize = false
   OptionParser.new do |op|
+    op.on("-m", "--memoize", "Memoize") do
+      memoize = true
+    end
     op.on("-x", "--xc-league LEAGUE", XC.leagues_hash, "XC league") do |arg|
       league = arg
     end
@@ -41,7 +45,12 @@ def main(argv)
   end
   argv.each do |arg|
     igc = IGC.new(File.open(arg))
-    league.optimize(igc.fixes).each do |xc|
+    if memoize
+      xcs = league.memoized_optimize(igc.bsignature, igc.fixes)
+    else
+      xcs = league.optimize(igc.fixes)
+    end
+    xcs.each do |xc|
       puts("League-Name: #{xc.league.name}")
       puts("League-Description: #{xc.league.description}")
       puts("Type: #{xc.type}")
