@@ -389,7 +389,7 @@ track_open_distance_one_point(const track_t *track, double bound, time_t *times)
             bound = total;
             ++tp1;
         } else {
-            tp1 = track_fast_forward(track, tp1, 2.0 * (bound - total));
+            tp1 = track_fast_forward(track, tp1, 0.5 * (bound - total));
         }
     }
     track_indexes_to_times(track, 3, indexes, times);
