@@ -29,13 +29,13 @@ module XC
 
   end
 
-  league :XContest, "XContest", 15000.0, "Start", "TP%d", "Finish", {
+  league :XContest, "XContest", 15000.0, "BD", "B%d", "BA", {
     :Open0       => { :turnpoints => 0, :type => "CL2" },
     :Open1       => { :turnpoints => 1, :type => "CL3" },
     :Open2       => { :turnpoints => 2, :type => "CL4" },
     :Open3       => { :turnpoints => 3, :type => "CL5" },
-    :Circuit3    => { :turnpoints => 3, :type => "FLAT TRIANGLE", :circuit => true },
-    :Circuit3FAI => { :turnpoints => 3, :type => "FAI TRIANGLE",  :circuit => true },
+    :Circuit3    => { :turnpoints => 3, :type => "FLAT TRIANGLE", :circuit => true, :multiplier => 1.2 },
+    :Circuit3FAI => { :turnpoints => 3, :type => "FAI TRIANGLE",  :circuit => true, :multiplier => 1.4 },
   }
 
   class XContest
