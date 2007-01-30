@@ -445,7 +445,7 @@ track_open_distance_three_points(const track_t *track, double bound, time_t *tim
                     bound34 = legs34;
                     ++tp3;
                 } else {
-                    tp3 = track_fast_forward(track, tp3, 2.0 * (bound34 - legs34));
+                    tp3 = track_fast_forward(track, tp3, 0.5 * (bound34 - legs34));
                 }
             }
             bound234 = leg2 + bound34;
