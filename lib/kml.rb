@@ -1,4 +1,5 @@
 require "coord"
+require "stringio"
 
 class Coord
 
@@ -12,10 +13,10 @@ class KML
 
   VERSION = [2, 1].extend(Comparable)
 
-  def initialize(root)
+  def initialize(*args)
     @kml = KML::Kml.new
     @kml.add_attributes(:xmlns => "http://earth.google.com/kml/#{VERSION.join(".")}")
-    @kml.add(root)
+    args.each(&@kml.method(:add))
   end
 
   def write(io)
@@ -26,6 +27,12 @@ class KML
   def pretty_write(io, indent = "  ")
     io.write("<?xml version=\"1.0\"?>\n")
     @kml.pretty_write(io, indent, "")
+  end
+
+  def to_s
+    stringio = StringIO.new
+    pretty_write(stringio)
+    stringio.string
   end
 
   class Element
@@ -179,6 +186,13 @@ class KML
         class_name = arg.to_s.sub(/\A./) { |s| s.upcase }.to_sym
         class_eval("class #{class_name} < SimpleElement; NAME = \"#{arg}\"; end")
         const_get(class_name).instance_eval(&block) if block
+        method_name = arg.to_s.gsub(/[A-Z]/) { |s| "_#{s.downcase}" }
+        ComplexElement.class_eval(<<-EOC)
+          def #{method_name}=(value)
+            add(#{class_name}.new(value))
+            value
+          end
+        EOC
       end
     end
 
