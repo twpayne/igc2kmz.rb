@@ -1,0 +1,148 @@
+#!/usr/bin/ruby
+
+$:.unshift File.dirname(__FILE__) + "/../lib"
+
+require "rubygems"
+require "bounds"
+require "camping"
+require "find"
+require "igc"
+require "kml"
+require "kml/rmagick"
+
+Camping.goes :FlightBrowser
+
+module FlightBrowser::Models
+
+  FLIGHTS = []
+
+  class Flight
+
+    class EmptyError < RuntimeError; end
+
+    attr_reader :bounds
+    attr_reader :kml
+    attr_reader :name
+
+    def initialize(igc)
+      raise EmptyError if igc.fixes.empty?
+      @bounds = Bounds.new
+      @bounds.lat = igc.fixes.collect(&:lat).bounds
+      @bounds.lon = igc.fixes.collect(&:lon).bounds
+      line_string = KML::LineString.new(:coordinates => igc.fixes, :altitudeMode => :absolute)
+      hue = igc.bsignature.hex.to_f / 2 ** 128
+      line_style = KML::LineStyle.new(KML::Color.pixel(Magick::Pixel.from_HSL([hue, 1.0, 0.5])))
+      style = KML::Style.new(line_style)
+      placemark = KML::Placemark.new(line_string, style)
+      @kml = KML.new(placemark).to_s
+      @name = igc.filename
+    end
+
+    def overlap?(bbox)
+      @bounds.lon.overlap?(bbox[0]..bbox[2]) and @bounds.lat.overlap?(bbox[1]..bbox[3])
+    end
+
+    class << self
+
+      def scan(dir)
+        Find.find(dir) do |path|
+          next unless FileTest.file?(path)
+          next unless /\.igc\z/i.match(path)
+          File.open(path) do |file|
+            begin
+              FLIGHTS << Flight.new(IGC.new(file))
+            rescue EmptyError
+            end
+          end
+        end
+        puts("#{FLIGHTS.size} flights")
+      end
+
+    end
+
+  end
+
+end
+
+module FlightBrowser::Views
+
+  def index
+    link = KML::Link.new
+    link.href = "http://192.168.1.2:3301/flights.kml"
+    link.view_refresh_mode = :onStop
+    link.view_refresh_time = 1
+    network_link = KML::NetworkLink.new
+    network_link.name = "Flights"
+    network_link.fly_to_view = 0
+    network_link.refresh_visibility = 0
+    network_link.add(link)
+    network_link_control = KML::NetworkLinkControl.new
+    network_link_control.expires = "9999-12-31T23:59:59Z"
+    document = KML::Document.new
+    document.name = "FlightBrowser"
+    document.visibility = 1
+    document.add(network_link)
+    KML.new(document, network_link_control).to_s
+  end
+
+  def flights
+    folder = KML::Folder.new
+    @indexes.each do |index|
+      link = KML::Link.new
+      link.href = "http://192.168.1.2:3301/flights/#{index}.kml"
+      link.refresh_mode = :onExpires
+      network_link = KML::NetworkLink.new
+      network_link.name = FlightBrowser::Models::FLIGHTS[index].name
+      network_link.fly_to_view = 0
+      network_link.refresh_visibility = 0
+      network_link.add(link)
+      folder.add(network_link)
+    end
+    KML.new(folder).to_s
+  end
+
+  def flight
+    @flight ? @flight.kml : KML.new(KML::Document.new).to_s
+  end
+
+end
+
+module FlightBrowser::Controllers
+
+  class Index < R "/index.kml"
+
+    def get
+      @headers["Content-Type"] = "application/vnd.google-earth.kml+xml"
+      render(:index)
+    end
+
+  end
+
+  class Flights < R "/flights.kml"
+
+    def get
+      @headers["Content-Type"] = "application/vnd.google-earth.kml+xml"
+      bbox = @input.BBOX.split(/,/).collect(&:to_f).collect(&Radians.method(:new_from_deg))
+      @indexes = []
+      FLIGHTS.each_with_index do |flight, index|
+        @indexes << index if flight.overlap?(bbox)
+      end
+      render(:flights)
+    end
+
+  end
+
+  class Flight < R "/flights/(\\d+).kml"
+
+    def get(index)
+      @headers["Content-Type"] = "application/vnd.google-earth.kml+xml"
+      @flight = FLIGHTS[index.to_i]
+      render(:flight)
+    end
+
+  end
+
+end
+
+#FlightBrowser::Models::Flight.scan("/home/twp/doc/paragliding/igc")
+FlightBrowser::Models::Flight.scan("/home/twp/maximumxc/tmp/cfd")
