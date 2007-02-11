@@ -186,7 +186,7 @@ class KML
         class_name = arg.to_s.sub(/\A./) { |s| s.upcase }.to_sym
         class_eval("class #{class_name} < SimpleElement; NAME = \"#{arg}\"; end")
         const_get(class_name).instance_eval(&block) if block
-        method_name = arg.to_s.gsub(/[A-Z]/) { |s| "_#{s.downcase}" }
+        method_name = arg.to_s.sub(/\A[A-Z]/) { |s| s.downcase }.gsub(/[A-Z]/) { |s| "_#{s.downcase}" }
         ComplexElement.class_eval(<<-EOC)
           def #{method_name}=(value)
             add(#{class_name}.new(value))
