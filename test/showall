@@ -1,0 +1,36 @@
+#!/usr/bin/ruby
+
+$:.unshift File.dirname(__FILE__) + "/../lib"
+require "rubygems"
+require "find"
+require "igc"
+require "kml"
+require "kml/rmagick"
+
+class IGC
+
+  def to_kml
+    line_string = KML::LineString.new(:coordinates => @fixes, :altitudeMode => :absolute)
+    hue = @bsignature.hex.to_f / 2 ** 128
+    line_style = KML::LineStyle.new(KML::Color.pixel(Magick::Pixel.from_HSL([hue, 1.0, 0.5])))
+    style = KML::Style.new(line_style)
+    KML::Placemark.new(line_string, style, :name => @filename)
+  end
+
+end
+
+def main(argv)
+  document = KML::Document.new
+  argv.each do |arg|
+    Find.find(arg) do |path|
+      next unless FileTest.file?(path)
+      next unless /\.igc\z/i.match(path)
+      igc = File.open(path) { |f| IGC.new(f) }
+      next if igc.fixes.empty?
+      document.add(igc.to_kml)
+    end
+  end
+  KML.new(document).write($stdout)
+end
+
+main(ARGV) if $0 == __FILE__
