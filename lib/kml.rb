@@ -9,6 +9,14 @@ class Coord
 
 end
 
+class Time
+
+  def to_kml
+    getutc.strftime("%Y-%m-%dT%H:%M:%SZ")
+  end
+
+end
+
 class KML
 
   VERSION = [2, 1].extend(Comparable)
@@ -380,10 +388,12 @@ class KML
   end
   if VERSION >= [2, 1]
     complex :AddressDetails
+    simple :begin
     complex :Change
     simple :code
     complex :Create
     complex :Delete
+    simple :end
     simple :expires
     complex :LatLonAltBox
     complex :Link
@@ -405,8 +415,11 @@ class KML
     complex :Roll
     complex :Status
     simple :targetHref
+    complex :TimeSpan
+    complex :TimeStamp
     complex :Update
     simple :viewFormat
+    simple :when
   end
 
 end
