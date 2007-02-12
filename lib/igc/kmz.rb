@@ -352,6 +352,7 @@ class IGC
 
     def default_hints
       hints = OpenStruct.new
+      hints.animation_icon = KML::Icon.default
       hints.color = KML::Color.color("red")
       hints.league = XC::Open
       hints.photo_tz_offset = 0
@@ -442,6 +443,7 @@ class IGC
     snippet = KML::Snippet.new(fields.join(", "))
     kmz = KMZ.new(make_description(hints), snippet, KML::Name.new((hints.name || @filename).to_xml), KML::Open.new(1))
     kmz.merge_sibling(hints.stock.kmz)
+    kmz.merge_sibling(animation(hints))
     kmz.merge_sibling(track_log_folder(hints))
     kmz.merge_sibling(shadow_folder(hints)) if altitude_data?
     kmz.merge_sibling(photos_folder(hints)) if hints.photos
@@ -486,6 +488,27 @@ class IGC
     screen_overlay = KML::ScreenOverlay.new(icon, overlay_xy, screen_xy, size)
     folder.add(screen_overlay)
     KMZ.new(folder, :roots => styles, :files => {href => image.to_blob})
+  end
+
+  def animation(hints)
+    icon_style = KML::IconStyle.new(hints.animation_icon, :scale => ICON_SCALE)
+    style = KML::Style.new(icon_style)
+    folder = KML::Folder.new(style, :name => "Animation", :open => 0, :styleUrl => hints.stock.check_hide_children_style.url)
+    point = KML::Point.new(:coordinates => @fixes[0], :altitudeMode => hints.altitude_mode)
+    timespan = KML::TimeSpan.new(:end => @fixes[0].time.to_kml)
+    placemark = KML::Placemark.new(point, timespan, :styleUrl => style.url)
+    folder.add(placemark)
+    @fixes.each_cons(2) do |fix0, fix1|
+      point = KML::Point.new(:coordinates => fix0.halfway_to(fix1), :altitudeMode => hints.altitude_mode)
+      timespan = KML::TimeSpan.new(:begin => fix0.time.to_kml, :end => fix1.time.to_kml)
+      placemark = KML::Placemark.new(point, timespan, :styleUrl => style.url)
+      folder.add(placemark)
+    end
+    point = KML::Point.new(:coordinates => @fixes[-1], :altitudeMode => hints.altitude_mode)
+    timespan = KML::TimeSpan.new(:begin => @fixes[-1].time.to_kml)
+    placemark = KML::Placemark.new(point, timespan, :styleUrl => style.url)
+    folder.add(placemark)
+    KMZ.new(folder)
   end
 
   def track_log_folder(hints)
