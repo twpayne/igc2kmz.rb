@@ -215,9 +215,14 @@ class KML
   end
 
   simple :address
+  complex :AddressDetails
   simple :altitude
   simple :altitudeMode
   complex :BalloonStyle
+  simple :begin
+  simple :bgColor
+  complex :Change
+  simple :code
   simple :color
   simple :colorMode
   simple :cookie
@@ -256,18 +261,24 @@ class KML
 
   end
 
+  complex :Create
+  complex :Delete
   simple :description
   complex :Document
   simple :drawOrder
   simple :east
+  simple :end
+  simple :expires
   simple :extrude
   simple :fill
-  complex :Folder
   simple :flyToView
+  complex :Folder
   complex :GroundOverlay
   simple :h
   simple :heading
+  simple :hotSpot
   simple :href
+  simple :httpQuery
 
   complex :Icon do
 
@@ -306,20 +317,35 @@ class KML
 
   complex :IconStyle
   complex :innerBoundaryIs
+  complex :ItemIcon
   simple :key
   complex :kml
   complex :LabelStyle
   simple :latitude
+  complex :LatLonAltBox
   complex :LatLonBox
   complex :LinearRing
   complex :LineString
   complex :LineStyle
+  complex :Link
   simple :linkDescription
   simple :linkName
+  simple :listItemType
+  complex :ListStyle
+  complex :Location
+  complex :Lod
   simple :longitude
   complex :LookAt
+  simple :maxAltitude
+  simple :maxFadeExtent
+  simple :maxLodPixels
   simple :message
+  complex :Metadata
+  simple :minAltitude
+  simple :minFadeExtent
+  simple :minLodPixels
   simple :minRefreshPeriod
+  complex :Model
   complex :MultiGeometry
   simple :name
   complex :NetworkLink
@@ -328,6 +354,7 @@ class KML
   complex :ObjArrayField
   complex :ObjField
   simple :open
+  complex :Orientation
   complex :outerBoundaryIs
   simple :outline
   simple :overlayXY
@@ -341,6 +368,10 @@ class KML
   simple :refreshInterval
   simple :refreshMode
   simple :refreshVisibility
+  complex :Region
+  simple :request
+  complex :Response
+  complex :Roll
   simple :rotation
   simple :scale
   complex :Schema
@@ -351,6 +382,7 @@ class KML
   simple :size
   simple :south
   simple :Snippet
+  complex :Status
 
   complex :Style do |klass|
 
@@ -368,58 +400,25 @@ class KML
 
   complex :StyleMap
   simple :styleUrl
+  simple :targetHref
   simple :tessellate
   complex :Text
   simple :tilt
+  complex :TimeSpan
+  complex :TimeStamp
   simple :type
+  complex :Update
   complex :Url
   simple :viewBoundScale
+  simple :viewFormat
   simple :viewRefreshMode
   simple :viewRefreshTime
   simple :visibility
   simple :w
   simple :west
+  simple :when
   simple :width
   simple :x
   simple :y
-
-  if VERSION < [2, 1]
-    simple :ViewFormat
-  end
-  if VERSION >= [2, 1]
-    complex :AddressDetails
-    simple :begin
-    complex :Change
-    simple :code
-    complex :Create
-    complex :Delete
-    simple :end
-    simple :expires
-    complex :LatLonAltBox
-    complex :Link
-    simple :listItemType
-    complex :ListStyle
-    complex :Location
-    complex :Lod
-    simple :maxAltitude
-    simple :maxFadeExtent
-    simple :maxLodPixels
-    simple :minAltitude
-    simple :minFadeExtent
-    simple :minLodPixels
-    complex :Model
-    complex :Orientation
-    complex :Region
-    simple :request
-    complex :Response
-    complex :Roll
-    complex :Status
-    simple :targetHref
-    complex :TimeSpan
-    complex :TimeStamp
-    complex :Update
-    simple :viewFormat
-    simple :when
-  end
 
 end
