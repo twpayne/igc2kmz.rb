@@ -88,10 +88,11 @@ class IGC
         @flight_recorder = $1
       when /\AH([FOP])DTE(\d\d)(\d\d)(\d\d)\s*\z/i
         year = $4.to_i
-        if line[5, 6] == "000000"
-          date = Date.new(1970, 1, 1)
-        else
+        begin
           date = Date.new((year < 70 ? 2000 : 1900) + year, $3.to_i, $2.to_i)
+          Time.utc(date.year, date.month, date.mday)
+        rescue ArgumentError
+          date = Date.new(2000, 1, 1)
         end
         @header[:date] ||= date
       when /\AH([FOP])DTM(\d\d\d)[A-Z]*:(.*?)\z/i
@@ -114,21 +115,24 @@ class IGC
         lon = Radians.new_from_dmsh($5.to_i, $6.to_i + 0.001 * $7.to_i, 0, $8)
         @route << Waypoint.new(lat, lon, 0, $9.strip)
       when /\AB(\d\d)(\d\d)(\d\d)(\d\d)(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5}|-\d{4})(\d{5}|-\d{4})(.*)\z/i
-        bdigest << line
-        hour = $1.to_i
-        min = $2.to_i
-        sec = $3.to_i
-        sec1 = 3600 * hour + 60 * min + sec
-        date += 1 if sec1 < sec0
-        time = Time.utc(date.year, date.month, date.mday, hour, min, sec)
-        sec0 = sec1
-        lat = Radians.new_from_dmsh($4.to_i, 0.001 * $5.to_i, 0, $6)
-        lon = Radians.new_from_dmsh($7.to_i, 0.001 * $8.to_i, 0, $9)
-        extensions = {}
-        @extensions.each do |extension|
-          extensions[extension.code] = line[extension.bytes].to_i
+        begin
+          bdigest << line
+          hour = $1.to_i
+          min = $2.to_i
+          sec = $3.to_i
+          sec1 = 3600 * hour + 60 * min + sec
+          date += 1 if sec1 < sec0
+          time = Time.utc(date.year, date.month, date.mday, hour, min, sec)
+          sec0 = sec1
+          lat = Radians.new_from_dmsh($4.to_i, 0.001 * $5.to_i, 0, $6)
+          lon = Radians.new_from_dmsh($7.to_i, 0.001 * $8.to_i, 0, $9)
+          extensions = {}
+          @extensions.each do |extension|
+            extensions[extension.code] = line[extension.bytes].to_i
+          end
+          @fixes << Fix.new(time, lat, lon, $11.to_i, $10.to_sym, $12.to_i, extensions)
+        rescue ArgumentError
         end
-        @fixes << Fix.new(time, lat, lon, $11.to_i, $10.to_sym, $12.to_i, extensions)
       when /\AL/i
       when /\AG(.*)\z/i
         @security_code << $1.strip
