@@ -47,6 +47,7 @@ class IGC
 
   attr_reader :filename
   attr_reader :flight_recorder
+  attr_reader :tz_offset
   attr_reader :header
   attr_reader :extensions
   attr_reader :route
@@ -66,13 +67,13 @@ class IGC
     "RFW" => :firmware_revision,
     "RHW" => :hardware_revision,
     "SIT" => :site,
-    "TZO" => :timezone_offset,
   }
 
   def initialize(io)
     @filename = io.respond_to?(:path) ? File.basename(io.path) : nil
     @flight_recorder = {}
     @header = {}
+    @tz_offset = 0
     @extensions = []
     @route = []
     @fixes = []
@@ -100,6 +101,10 @@ class IGC
         (@header[:datum] ||= {})[$2.to_i] = value unless value.empty?
       when /\AH([FOP])FXA(\d{3})\s*\z/i
         @header[:fix_accuracy] = $2.to_i
+      when /\AH([FOP])TZN[ A-Z]*:(-?)(\d+):(\d\d)\s*\z/i
+        @tz_offset = ($2 == "-" ? -60 : 60) * (60 * $3.to_i + $4.to_i)
+      when /\AH([FOP])TZO[ A-Z]*:(-?\d+)\s*\z/i
+        @tz_offset = 3600 * $2.to_i
       when /\AH([FOP])(#{HEADERS.keys.join("|")})[ A-Z]*:(.*?)\z/io
         key = HEADERS[$2]
         value = $3.strip

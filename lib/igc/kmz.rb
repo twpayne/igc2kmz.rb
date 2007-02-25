@@ -363,7 +363,7 @@ class IGC
 
   def to_kmz(hints = nil)
     hints = hints ? hints.clone : self.class.default_hints
-    hints.tz_offset = 3600 * (@header[:timezone_offset].to_f || 0) unless hints.tz_offset
+    hints.tz_offset ||= @tz_offset
     analyse
     if hints.bounds
       hints.bounds.merge(@bounds)
