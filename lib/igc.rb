@@ -85,7 +85,7 @@ class IGC
     io.each do |line|
       line = line.chomp
       case line
-      when /\AA(.*?)\s*\z/i
+      when /\A\x13?A(.*?)\s*\z/i
         @flight_recorder = $1
       when /\AH([FOP])DTE(\d\d)(\d\d)(\d\d)\s*\z/i
         year = $4.to_i
@@ -141,7 +141,7 @@ class IGC
       when /\AL/i
       when /\AG(.*)\z/i
         @security_code << $1.strip
-      when /\A\s*\z/
+      when /\A\x11?\s*\z/
       else
         @unknowns << line
       end
