@@ -32,6 +32,21 @@ class IGC
 
   end
 
+  class Task
+
+    attr_accessor :declaration_time
+    attr_accessor :flight_date
+    attr_accessor :task_number
+    attr_accessor :turnpoints
+    attr_accessor :description
+    attr_reader :route
+
+    def initialize
+      @route = []
+    end
+
+  end
+
   class Waypoint < Coord
 
     attr_reader :name
@@ -50,7 +65,7 @@ class IGC
   attr_reader :tz_offset
   attr_reader :header
   attr_reader :extensions
-  attr_reader :route
+  attr_reader :task
   attr_reader :fixes
   attr_reader :security_code
   attr_reader :bsignature
@@ -75,7 +90,6 @@ class IGC
     @header = {}
     @tz_offset = 0
     @extensions = []
-    @route = []
     @fixes = []
     @security_code = []
     @unknowns = []
@@ -90,7 +104,7 @@ class IGC
       when /\AH([FOP])DTE(\d\d)(\d\d)(\d\d)\s*\z/i
         year = $4.to_i
         begin
-          date = Date.new((year < 70 ? 2000 : 1900) + year, $3.to_i, $2.to_i)
+          date = Date.new(2000 + year, $3.to_i, $2.to_i)
           Time.utc(date.year, date.month, date.mday)
         rescue ArgumentError
           date = Date.new(2000, 1, 1)
@@ -101,9 +115,8 @@ class IGC
         (@header[:datum] ||= {})[$2.to_i] = value unless value.empty?
       when /\AH([FOP])FXA(\d{3})\s*\z/i
         @header[:fix_accuracy] = $2.to_i
-      when /\AH([FOP])TZ[NO][ A-Z]*:\s*(-?)(\d+)(?::(\d\d))?\s*\z/i
+      when /\AH([FOP])TZ[NO][ A-Z]*:\s*([+\-]?)(\d+)(?::(\d\d))?\s*\z/i
         @tz_offset = ($2 == "-" ? -60 : 60) * (60 * $3.to_i + ($4 ? $4.to_i : 0))
-        p @tz_offset
       when /\AH([FOP])(#{HEADERS.keys.join("|")})[ A-Z]*:(.*?)\z/io
         key = HEADERS[$2]
         value = $3.strip
@@ -114,10 +127,24 @@ class IGC
             @extensions << Extension.new(($1.to_i - 1)...$2.to_i, $3.downcase.to_sym)
           end
         end
+      when /\AC(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d{4})(\d\d)(.*?)\s*\z/i
+        @task ||= Task.new
+        begin
+          @task.declaration_time = Time.utc(2000 + $3.to_i, $2.to_i, $1.to_i, $4.to_i, $5.to_i, $6.to_i)
+        rescue ArgumentError
+        end
+        begin
+          @task.flight_date = Date.new(2000 + $9.to_i, $8.to_i, $7.to_i)
+        rescue ArgumentError
+        end
+        @task.task_number = $10.to_i
+        @task.turnpoints = $11.to_i
+        @task.description = $12
       when /\AC(\d\d)(\d\d)(\d{3})([NS])(\d{3})(\d\d)(\d{3})([EW])(.*)\z/i
+        @task ||= Task.new
         lat = Radians.new_from_dmsh($1.to_i, $2.to_i + 0.001 * $3.to_i, 0, $4)
         lon = Radians.new_from_dmsh($5.to_i, $6.to_i + 0.001 * $7.to_i, 0, $8)
-        @route << Waypoint.new(lat, lon, 0, $9.strip)
+        @task.route << Waypoint.new(lat, lon, 0, $9.strip)
       when /\AB(\d\d)(\d\d)(\d\d)(\d\d)(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5}|-\d{4})(\d{5}|-\d{4})(.*)\z/i
         begin
           bdigest << line
@@ -137,7 +164,7 @@ class IGC
           @fixes << Fix.new(time, lat, lon, $11.to_i, $10.to_sym, $12.to_i, extensions)
         rescue ArgumentError
         end
-      when /\AL/i
+      when /\A[DEFJKL]/i
       when /\AG(.*)\z/i
         @security_code << $1.strip
       when /\A\x11?\s*\z/

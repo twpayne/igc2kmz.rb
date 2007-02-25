@@ -58,7 +58,7 @@ def main
     op.parse!
   end
   igc = IGC.new(ARGF)
-  waypoints = igc.route.find_all do |waypoint|
+  waypoints = igc.task.route.find_all do |waypoint|
     not ["TAKEOFF", "LANDING"].include?(waypoint.name)
   end
   start_circle_index += waypoints.length if start_circle_index and start_circle_index < 0
