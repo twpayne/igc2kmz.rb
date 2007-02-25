@@ -18,6 +18,12 @@ module Radians
       rad * 180.0 / Math::PI
     end
 
+    def new_from_s(s)
+      md = /([+\-])?.*?(\d+(?:\.\d+)?)(?:.*?(\d+(?:\.\d+)?)(?:.*?(\d+(?:\.\d+)?))?)?(?:.*?\b(#{HEMISPHERES.keys.join('|')})\b)?/i.match(s)
+      raise s unless md
+      new_from_dmsh(md[2].to_f, md[3].to_f, md[4].to_f, (md[1] == '-' ? -1 : 1) * (md[5] ? HEMISPHERES[md[5].upcase] : 1))
+    end
+
   end
 
 end
