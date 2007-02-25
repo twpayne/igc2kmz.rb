@@ -101,10 +101,9 @@ class IGC
         (@header[:datum] ||= {})[$2.to_i] = value unless value.empty?
       when /\AH([FOP])FXA(\d{3})\s*\z/i
         @header[:fix_accuracy] = $2.to_i
-      when /\AH([FOP])TZN[ A-Z]*:(-?)(\d+):(\d\d)\s*\z/i
-        @tz_offset = ($2 == "-" ? -60 : 60) * (60 * $3.to_i + $4.to_i)
-      when /\AH([FOP])TZO[ A-Z]*:(-?\d+)\s*\z/i
-        @tz_offset = 3600 * $2.to_i
+      when /\AH([FOP])TZ[NO][ A-Z]*:\s*(-?)(\d+)(?::(\d\d))?\s*\z/i
+        @tz_offset = ($2 == "-" ? -60 : 60) * (60 * $3.to_i + ($4 ? $4.to_i : 0))
+        p @tz_offset
       when /\AH([FOP])(#{HEADERS.keys.join("|")})[ A-Z]*:(.*?)\z/io
         key = HEADERS[$2]
         value = $3.strip
