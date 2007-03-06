@@ -1,0 +1,400 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "rubygems"
+require "cgi"
+require "dbm"
+require "fileutils"
+require "hpricot"
+require "lib"
+require "net/http"
+require "optparse"
+require "thread"
+require "uri"
+
+class Hash
+
+  def to_uri_query
+    collect do |key, value|
+      "#{CGI.escape(key.to_s)}=#{CGI.escape(value.to_s)}"
+    end.join("&")
+  end
+
+end
+
+class SynchronizedObject
+
+  def initialize(object)
+    @object = object
+    @mutex = Mutex.new
+  end
+
+  def method_missing(*args)
+    @mutex.synchronize do
+      @object.send(*args)
+    end
+  end
+
+end
+
+class TaskList
+
+  def initialize(*tasks)
+    @mutex = Mutex.new
+    @change = ConditionVariable.new
+    @pending_tasks = tasks
+    @active_tasks = {}
+    @requested = {}
+  end
+
+  def concat(*tasks)
+    @mutex.synchronize do
+      tasks.each do |task|
+        next if @requested[task.uri.to_s]
+        @pending_tasks << task
+        @requested[task.uri.to_s] = true
+      end
+      @pending_tasks = @pending_tasks.sort_by(&:priority)
+      @change.signal
+      self
+    end
+  end
+
+  def shift(task = nil)
+    @mutex.synchronize do
+      if task
+        raise unless @active_tasks.delete(task.uri.to_s)
+        @change.broadcast
+      end
+      while @pending_tasks.empty?
+        return nil if @active_tasks.empty?
+        @change.wait(@mutex)
+      end
+      task = @pending_tasks.shift
+      @active_tasks[task.uri.to_s] = true
+      task
+    end
+  end
+
+  def each(&block)
+    task = shift
+    result = []
+    while task
+      result << block.call(self, task)
+      task = shift(task)
+    end
+    result
+  end
+
+  def threaded_each(threads, &block)
+    (0...threads).collect do
+      Thread.new do
+        each(&block)
+      end
+    end.each(&:join)
+  end
+
+end
+
+class Task
+
+  attr_reader :uri
+  attr_reader :headers
+  attr_reader :response
+  attr_reader :priority
+
+  def initialize(priority, uri, headers = {}, &block)
+    @priority = priority
+    @uri = uri
+    @headers = headers
+    @block = block
+  end
+
+  def request
+    Net::HTTP::Get.new(@uri.request_uri, @headers)
+  end
+
+  def respond(response)
+    @response = response
+    @block.call(self)
+  end
+
+end
+
+class FRCFDScraper
+
+  def initialize(options = {})
+    @headers = {}
+    if options[:year]
+      http.request_get("/Competition/Parapente/cfd_pp/cfd/cfd.php?cfdYear=#{options[:year]}") do |response|
+        cookies = CGI::Cookie.parse(response["set-cookie"])
+        @headers["Cookie"] = "PHPSESSID=#{cookies["PHPSESSID"][0]}"
+      end
+    end
+  end
+
+  def http
+    Net::HTTP.new("www.ffvl.fr")
+  end
+
+  def start
+    [Task.new(2, URI.parse("http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdSmartList.php?&pTypeList=all&pSelect=igcFile+%21%3D+%27%27+"), @headers, &method(:cfdSmartList))]
+  end
+
+  def cfdSmartList(task)
+    tasks = []
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      uri = task.uri + a["href"].gsub(/ /, "%20")
+      if uri.path == "/Competition/Parapente/cfd_pp/cfd/igcShow.php"
+        uri.path = "/Competition/Parapente/cfd_pp/cfd/getIgcFile.php"
+        puts(uri)
+      elsif a.inner_html =~ /\bLes\s+\d+\s+lignes\s+suivantes\s+-->/i
+        tasks << Task.new(2, uri, @headers, &method(:cfdSmartList))
+      end
+    end
+    tasks
+  end
+
+end
+
+class LeonardoScraper
+
+  def initialize(options = {})
+  end
+
+  def http
+    Net::HTTP.new("www.paraglidingforum.com")
+  end
+
+  def start
+    [Task.new(2, URI.parse("http://www.paraglidingforum.com/modules.php?name=leonardo&op=list_flights"), &method(:list_flights))]
+  end
+
+  def list_flights(task)
+    tasks = []
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      next if a["href"] =~ /\Ajavascript:/
+      uri = task.uri + (a["href"] =~ /\A\?/ ? (task.uri.path + a["href"]) : a["href"])
+      if uri.query
+        query = CGI.parse(uri.query)
+        if query["name"][0] == "leonardo" and query["op"][0] == "show_flight"
+          tasks << Task.new(1, uri, &method(:show_flight))
+        end
+      end
+    end
+    tasks
+  end
+
+  def show_flight(task)
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      next if a["href"] =~ /\Ajavascript:/
+      uri = task.uri + a["href"]
+      next unless a.inner_html =~ /\bIGC\b/i
+      puts(uri)
+    end
+    []
+  end
+
+end
+
+class OLCScraper
+
+  def initialize(options = {})
+    @year = options[:year] || 2006
+  end
+
+  def http
+    Net::HTTP.new("www2.onlinecontest.org")
+  end
+
+  def start
+    [Task.new(2, URI.parse("http://www2.onlinecontest.org/holc/#{@year}/ausw_klassen.php?olc=holc-i&spr=en"), &method(:ausw_klassen))]
+  end
+
+  def ausw_klassen(task)
+    tasks = []
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      uri = task.uri + a["href"]
+      if uri.path.split(/\/+/)[-1] == "flightinfo.php"
+        tasks << Task.new(1, uri, &method(:flightinfo))
+      end
+    end
+    tasks
+  end
+
+  def flightinfo(task)
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      uri = task.uri + a["href"]
+      if uri.path.split(/\/+/)[-1] == "dumpigc.php"
+        puts(uri)
+      end
+    end
+    []
+  end
+
+end
+
+class UKXCLScraper
+
+  def initialize(options = {})
+    @year = options[:year] || 2006
+    @directory = File.join("ukxcl", @year.to_s)
+    FileUtils.makedirs(@directory)
+    @done = SynchronizedObject.new(DBM.open(File.join(@directory, "done")))
+  end
+
+  def http
+    Net::HTTP.new("www.pgcomps.org.uk")
+  end
+
+  def start
+    [Task.new(2, URI.parse("http://www.pgcomps.org.uk/xcleague/xc/view.php?showView=1" + (@year ? "&year=#{@year}" : "")), &method(:view))]
+  end
+
+  def view(task)
+    tasks = []
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      uri = task.uri + CGI.unescapeHTML(a["href"])
+      if uri.path == "/xcleague/xc/viewFlight.php"
+        uri.query = uri.query.sub(/\&ids=\d+(-\d+)*\z/, "")
+        tasks << Task.new(1, uri, &method(:viewFlight)) unless @done[make_key(uri.to_s)]
+      elsif a.inner_html =~ /\bView\s+Table\b/i
+        tasks << Task.new(2, uri, &method(:view))
+      end
+    end
+    tasks
+  end
+
+  def viewFlight(task)
+    tasks = []
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      uri = task.uri + CGI.unescapeHTML(a["href"])
+      if a.inner_html =~ /\bDownload\s+IGC\b/i
+        tasks << Task.new(0, uri, {"Referer" => task.uri.to_s}, &method(:download)) unless @done[make_key(uri.to_s)]
+      end
+    end
+    tasks
+  end
+
+  def download(task)
+    filename = File.join(@directory, File.basename(CGI.parse(task.uri.query)["tracklog"][0]))
+    File.open(filename, "w") do |io|
+      io.write(task.response.body)
+    end
+    @done[make_key(task.headers["Referer"])] = "1"
+    []
+  end
+
+  def make_key(uri)
+    uri = URI.parse(uri.to_s)
+    uri.query = uri.query.sub(/\&ids=\d+(-\d+)*\z/, "")
+    uri.to_s
+  end
+
+end
+
+class XContestScraper
+
+  def initialize(options = {})
+    @league = options[:league] || "demo"
+    @directory = File.join("xcontest", @league)
+    FileUtils.makedirs(@directory)
+    @done = SynchronizedObject.new(DBM.open(File.join(@directory, "done")))
+  end
+
+  def start
+    [Task.new(2, URI.parse("http://www.pgweb.info/xcontest/#{@league}/flights/"), &method(:flights))]
+  end
+
+  def http
+    Net::HTTP.new("www.pgweb.info")
+  end
+
+  def detail(task)
+    tasks = []
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      uri = task.uri + a["href"]
+      if uri.path == "/track.php"
+        filename = File.join(@directory, CGI.parse(uri.query)["t"])
+        if !FileTest.exist?(filename) or FileTest.zero?(filename)
+          tasks << Task.new(0, uri, {"Referer" => task.uri.to_s}, &method(:track))
+        end
+      end
+    end
+    tasks
+  end
+
+  def flights(task)
+    tasks = []
+    Hpricot(task.response.body).search("//a[@href]") do |a|
+      uri = task.uri + a["href"]
+      if uri.path =~ /\A\/xcontest\/flights\/detail:/
+        tasks << Task.new(1, uri, &method(:detail)) unless @done[uri.to_s]
+      elsif uri.request_uri =~ /\A\/xcontest\/[^\/]+\/flights\/\?list\[start\]=\d+\z/
+        tasks << Task.new(2, uri, &method(:flights))
+      end
+    end
+    tasks
+  end
+
+  def track(task)
+    filename = File.join(@directory, CGI.parse(task.uri.query)["t"][0])
+    File.open(filename, "w") do |io|
+      io.write(task.response.body)
+    end
+    @done[task.headers["Referer"]] = "1"
+    []
+  end
+
+end
+
+def main(argv)
+  threads = 1
+  options = {}
+  OptionParser.new do |op|
+    op.on("--from FROM", Integer) do |arg|
+      options[:from] = arg
+    end
+    op.on("--league LEAGUE", String) do |arg|
+      options[:league] = arg
+    end
+    op.on("--to TO", Integer) do |arg|
+      options[:to] = arg
+    end
+    op.on("--threads THREADS", Integer) do |arg|
+      threads = arg
+    end
+    op.on("--year YEAR", Integer) do |arg|
+      options[:year] = arg
+    end
+    op.parse!(argv)
+  end
+  argv.each do |arg|
+    case arg
+    when "frcfd"    then scraper = FRCFDScraper.new(options)
+    when "leonardo" then scraper = LeonardoScraper.new(options)
+    when "olc"      then scraper = OLCScraper.new(options)
+    when "ukxcl"    then scraper = UKXCLScraper.new(options)
+    when "xcontest" then scraper = XContestScraper.new(options)
+    else raise
+    end
+    tasklist = TaskList.new.concat(*scraper.start)
+    (0...threads).collect do
+      Thread.new do
+        http = nil
+        tasklist.each do |tasklist, task|
+          begin
+            http ||= scraper.http.start
+            puts(task.uri)
+            tasklist.concat(*task.respond(http.request(task.request)))
+          rescue EOFError, Timeout::Error
+            http = nil
+            retry
+          end
+        end
+      end
+    end.each(&:join)
+  end
+end
+
+main(ARGV) if $0 == __FILE__
