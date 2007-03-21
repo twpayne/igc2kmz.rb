@@ -35,6 +35,10 @@ def main(argv)
     op.on("-p", "--photo-tz-offset OFFSET", TIME_REGEXP, "Photo timezone offset") do |arg|
       hints.photo_tz_offset = (60 * arg[2].to_i + arg[3].to_i) * (arg[1] == "-" ? -60 : 60)
     end
+    op.on("-S", "--photo-max-size WIDTHxHEIGHT", /\A(\d+)x(\d+)\z/, "Maximum photo size") do |arg|
+      hints.photo_max_width = arg[1].to_i
+      hints.photo_max_height = arg[2].to_i
+    end
     op.on("-s", "--sponsor SPONSOR", SPONSORS.keys, "Sponsor") do |arg|
       hints.sponsor = SPONSORS[arg]
     end
