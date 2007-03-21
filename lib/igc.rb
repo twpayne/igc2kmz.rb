@@ -146,8 +146,8 @@ class IGC
         lon = Radians.new_from_dmsh($5.to_i, $6.to_i + 0.001 * $7.to_i, 0, $8)
         @task.route << Waypoint.new(lat, lon, 0, $9.strip)
       when /\AB(\d\d)(\d\d)(\d\d)(\d\d)(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5}|-\d{4})(\d{5}|-\d{4})(.*)\z/i
+        bdigest << line
         begin
-          bdigest << line
           hour = $1.to_i
           min = $2.to_i
           sec = $3.to_i
