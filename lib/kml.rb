@@ -402,7 +402,7 @@ class KML
   simple :styleUrl
   simple :targetHref
   simple :tessellate
-  complex :Text
+  simple :text
   simple :tilt
   complex :TimeSpan
   complex :TimeStamp
