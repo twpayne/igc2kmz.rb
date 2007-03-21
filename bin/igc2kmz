@@ -2,8 +2,10 @@
 
 $:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
 require "igc"
+require "igc/filter"
 require "igc/kmz"
 require "optparse"
+require "ostruct"
 require "photo"
 require "rexml/document"
 require "sponsor"
@@ -22,9 +24,13 @@ TIME_REGEXP = /\A([+\-])?(\d+)(?::([0-5][0-9]))?\z/
 def main(argv)
   hints = IGC.default_hints
   output = nil
+  options = OpenStruct.new
   OptionParser.new do |op|
     op.on("-c", "--color COLOR", "Color") do |arg|
       hints.color = KML::Color.color(arg)
+    end
+    op.on("-d", "--filter-duplicate-fixes", "Filter duplicate fixes") do |arg|
+      options.filter_duplicate_fixes = true
     end
     op.on("-o", "--output FILENAME", String, "Output filename") do |arg|
       output = arg
@@ -65,6 +71,7 @@ def main(argv)
       raise if igc
       File.open(arg) do |io|
         igc = IGC.new(io)
+        igc.filter_duplicate_fixes! if options.filter_duplicate_fixes
       end
     else
       hints.photos << Photo.new(arg)
