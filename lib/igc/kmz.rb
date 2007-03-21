@@ -298,7 +298,7 @@ class IGC
 
     def default_hints
       hints = OpenStruct.new
-      hints.animation_icon = KML::Icon.default
+      hints.animation_icon = KML::Icon.new(:href => "http://www.paraglidingforum.com/modules/leonardo/img/icon_cat_1.png")
       hints.color = KML::Color.color("red")
       hints.league = XC::Open
       hints.photo_tz_offset = 0
