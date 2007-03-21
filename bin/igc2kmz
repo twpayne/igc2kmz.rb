@@ -29,7 +29,10 @@ def main(argv)
     op.on("-c", "--color COLOR", "Color") do |arg|
       hints.color = KML::Color.color(arg)
     end
-    op.on("-d", "--filter-duplicate-fixes", "Filter duplicate fixes") do |arg|
+    op.on("-C", "--clamp-to-ground", "Clamp to ground") do
+      hints.altitude_mode = :clampToGround
+    end
+    op.on("-d", "--filter-duplicate-fixes", "Filter duplicate fixes") do
       options.filter_duplicate_fixes = true
     end
     op.on("-o", "--output FILENAME", String, "Output filename") do |arg|

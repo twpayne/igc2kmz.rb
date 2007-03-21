@@ -373,7 +373,7 @@ class IGC
       hints.bounds = @bounds
     end
     hints.igc = self
-    hints.altitude_mode = altitude_data? ? :absolute : nil
+    hints.altitude_mode ||= altitude_data? ? :absolute : nil
     hints.xcs = hints.league.memoized_optimize(@bsignature, @fixes) if !hints.task and hints.league
     hints.scales = OpenStruct.new
     hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, hints.units[:altitude])
@@ -473,6 +473,7 @@ class IGC
   end
 
   def shadow_folder(hints)
+    return KMZ.new if hints.altitude_mode != :absolute
     kmz = KMZ.new(KML::Folder.new(:name => "Shadow", :open => 1, :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.invisible_none_folder)
     kmz.merge(make_monochromatic_track_log(hints, KML::Color.color("black"), 1, nil, :name => "Normal", :visibility => 1))
