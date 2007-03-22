@@ -4,6 +4,7 @@ require "date"
 module Comparable
 
   def constrain(minimum = nil, maximum = nil)
+    minimum, maximum = minimum.first, minimum.last if minimum.is_a?(Range)
     return minimum if minimum and self < minimum
     return maximum if maximum and self > maximum
     self
