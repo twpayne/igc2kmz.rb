@@ -28,7 +28,7 @@ class Photo
     placemark = KML::Placemark.new(point, options)
     placemark.name = name.sub(/\.jpe?g/i, "").to_xml
     placemark.description = KML::CData.new("<img alt=\"#{name.to_xml}\" src=\"#{src.to_xml}\" width=\"#{width}\" height=\"#{height}\" />")
-    placemark.snippet = nil
+    placemark.snippet = ""
     KMZ.new(placemark, :files => files)
   end
 
