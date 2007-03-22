@@ -7,6 +7,7 @@ require "kmz"
 require "ostruct"
 require "photo/kmz"
 require "magick"
+require "cgiarcsi"
 require "sponsor/kmz"
 require "task"
 require "task/kmz"
@@ -157,7 +158,7 @@ class Scale
     end
   end
 
-  def to_graph_image(hints, times, values)
+  def to_graph_image(hints, times, values, background)
     border = Border.new(16, 4, 16, 36)
     width, height = 640 - border.width, 240 - border.height
     tstep, tdivisions = make_time_step(times[-1] - times[0], 6)
@@ -187,6 +188,13 @@ class Scale
         graph.g.styles(:stroke => "#bbb") do |major_grid|
           xticks.each { |x, label| major_grid.line(x, 0, x, height) if label }
           yticks.each { |y, label| major_grid.line(0, y, width, y) if label }
+        end
+        if background
+          xs = times.collect { |t| width.to_f * (t - times[0]) / (times[-1] - times[0]) }
+          ys = background.collect { |v| height.to_f * (v - vmin) / (vmax - vmin) }
+          xs << [width, 0]
+          ys << [0, 0]
+          graph.polygon(xs, ys).styles(:fill => "#00000040", :stroke => "none")
         end
         xticks.each { |x, label| graph.line(x, 0, x, label ? -4 : -2) }
         yticks.each { |y, label| graph.line(0, y, label ? -4 : -2, y) }
@@ -377,7 +385,7 @@ class IGC
     hints.altitude_mode ||= altitude_data? ? :absolute : nil
     hints.xcs = hints.league.memoized_optimize(@bsignature, @fixes) if !hints.task and hints.league
     hints.scales = OpenStruct.new
-    hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, hints.units[:altitude])
+    hints.scales.altitude = Scale.new("altitude", 0..hints.bounds.alt.last, hints.units[:altitude])
     hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, hints.units[:climb])
     hints.scales.speed = Scale.new("speed", hints.bounds.speed, hints.units[:speed])
     fields = []
@@ -709,10 +717,10 @@ class IGC
     kmz.merge(task_marks_folder(hints))
   end
 
-  def make_graph(hints, values, scale, folder_options = {})
+  def make_graph(hints, values, background, scale, folder_options = {})
     name = KML::Name.new(scale.title.capitalize)
     folder = KML::Folder.new(name, KML::StyleUrl.new(hints.stock.check_hide_children_style.url), folder_options)
-    image = scale.to_graph_image(hints, @times, values)
+    image = scale.to_graph_image(hints, @times, values, background)
     image.set_channel_depth(Magick::AllChannels, 8)
     image.format = "png"
     href = "images/graphs/#{scale.title}.#{image.format.downcase}"
@@ -729,10 +737,13 @@ class IGC
     kmz = KMZ.new(KML::Folder.new(:name => "Graphs", :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.visible_none_folder)
     if altitude_data?
-      kmz.merge(make_graph(hints, @fixes.collect(&:alt), hints.scales.altitude, :visibility => 0))
-      kmz.merge(make_graph(hints, @averages.collect(&:climb), hints.scales.climb, :visibility => 0))
+      gl = @fixes.collect do |fix|
+        CGIARCSI::SRTM90mDEM[Radians.to_deg(fix.lat), Radians.to_deg(fix.lon)].constrain(hints.bounds.alt).constrain(nil, fix.alt)
+      end
+      kmz.merge(make_graph(hints, @fixes.collect(&:alt), gl, hints.scales.altitude, :visibility => 0))
+      kmz.merge(make_graph(hints, @averages.collect(&:climb), nil, hints.scales.climb, :visibility => 0))
     end
-    kmz.merge(make_graph(hints, @averages.collect(&:speed), hints.scales.speed, :visibility => 0))
+    kmz.merge(make_graph(hints, @averages.collect(&:speed), nil, hints.scales.speed, :visibility => 0))
   end
 
 end
