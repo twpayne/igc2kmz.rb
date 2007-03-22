@@ -283,10 +283,11 @@ class IGC
       stock.kmz.merge_files(stock.pixel_url => pixel.to_blob)
       # xc
       color = KML::Color.color("magenta")
+      balloon_style = KML::BalloonStyle.new(:text => KML::CData.new("<h3>$[name]</h3>$[description]"))
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => IGC::ICON_SCALE)
       label_style = KML::LabelStyle.new(color)
       line_style = KML::LineStyle.new(color, :width => 2)
-      stock.xc_style = KML::Style.new(icon_style, label_style, line_style)
+      stock.xc_style = KML::Style.new(balloon_style, icon_style, label_style, line_style)
       stock.kmz.merge_roots(stock.xc_style)
       # task
       stock.task_style = stock.xc_style
@@ -485,9 +486,10 @@ class IGC
       (@times[0]..@times[-1]).include?(photo.time.to_i + hints.photo_tz_offset - hints.tz_offset)
     end
     return KMZ.new if photos.empty?
+    balloon_style = KML::BalloonStyle.new(:text => KML::CData.new("<h3>$[name]</h3>$[description]"))
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 46), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(:scale => LABEL_SCALES[0])
-    style = KML::Style.new(icon_style, label_style)
+    style = KML::Style.new(balloon_style, icon_style, label_style)
     kmz = KMZ.new(KML::Folder.new(:name => "Photos"), :roots => [style])
     photos.sort_by(&:time).each do |photo|
       kmz.merge(photo.to_kmz(hints, :styleUrl => style.url))
@@ -497,9 +499,10 @@ class IGC
 
   def altitude_marks_folder(hints)
     styles = hints.scales.altitude.pixels.collect do |pixel|
+      balloon_style = KML::BalloonStyle.new(:text => "$[description]")
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(KML::Color.pixel(pixel))
-      KML::Style.new(icon_style, label_style)
+      KML::Style.new(balloon_style, icon_style, label_style)
     end
     folders = {}
     [Extreme::Maximum, Extreme::Minimum].each do |type|
@@ -514,14 +517,16 @@ class IGC
 
   def thermals_and_glides_folder(hints)
     folder = KML::Folder.new(:name => "Thermals and glides", :visibility => 0, :styleUrl => hints.stock.check_hide_children_style.url)
+    balloon_style = KML::BalloonStyle.new(:text => KML::CData.new("<h3>$[name]</h3>$[description]"))
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(KML::Color.new("ff0033ff"), :scale => LABEL_SCALES[2])
     line_style = KML::LineStyle.new(KML::Color.new("880033ff"), :width => 4)
-    thermal_style = KML::Style.new(icon_style, label_style, line_style)
+    thermal_style = KML::Style.new(balloon_style, icon_style, label_style, line_style)
+    balloon_style = KML::BalloonStyle.new(:text => KML::CData.new("<h3>$[name]</h3>$[description]"))
     icon_style = KML::IconStyle.new(KML::Icon.palette(4, 24), :scale => ICON_SCALE)
     label_style = KML::LabelStyle.new(KML::Color.new("ffff3300"), :scale => LABEL_SCALES[2])
     line_style = KML::LineStyle.new(KML::Color.new("88ff3300"), :width => 4)
-    glide_style = KML::Style.new(icon_style, label_style, line_style)
+    glide_style = KML::Style.new(balloon_style, icon_style, label_style, line_style)
     if hints.xcs
       turnpoints = hints.xcs.sort_by(&:score)[-1].turnpoints
     elsif hints.task
@@ -649,9 +654,10 @@ class IGC
     styles = []
     period_struct = Struct.new(:period, :children)
     periods = [[3600, 27, 0], [1800, 27, 0], [900, 26, 1], [300, 25, 2], [60, 24, 3]].collect do |period, icon, label_scale_index|
+      balloon_style = KML::BalloonStyle.new(:text => "$[description]")
       icon_style = KML::IconStyle.new(KML::Icon.palette(4, icon), :scale => ICON_SCALE)
       label_style = KML::LabelStyle.new(KML::Color.new("ff00ffff"), :scale => LABEL_SCALES[label_scale_index])
-      style = KML::Style.new(icon_style, label_style)
+      style = KML::Style.new(balloon_style, icon_style, label_style)
       styles << style
       period_struct.new(period, [{:styleUrl => style.url}])
     end
