@@ -2,6 +2,7 @@ require "fileutils"
 require "lib"
 require "mmap"
 require "net/http"
+require "singleton"
 require "tempfile"
 require "zip/zip"
 
@@ -22,6 +23,16 @@ module CGIARCSI
 
     @@tiles = {}
 
+    class NoTile
+
+      include Singleton
+
+      def [](i, j)
+        0
+      end
+
+    end
+
     class Tile
 
       def initialize(mmap)
@@ -30,15 +41,17 @@ module CGIARCSI
       end
 
       def [](i, j)
-        @mmap[2 * (6000 * j + i), 2].unpack("n")[0]
+        @mmap[2 * (6000 * j + i), 2].unpack("s")[0]
       end
 
       class << self
 
         def new(x, y)
+          return NoTile.instance unless (1..72).include?(x) and (1..24).include?(y)
           FileUtils.mkpath([TILE_CACHE_DIRECTORY, ZIP_CACHE_DIRECTORY])
           tile = File.join(TILE_CACHE_DIRECTORY, "srtm_%02d_%02d.tile" % [x, y])
           return super(Mmap.new(tile)) if FileTest.exist?(tile) and !FileTest.zero?(tile)
+          return NoTile.instance if FileTest.exist?("#{tile}.404")
           zip = "srtm_%02d_%02d.zip" % [x, y]
           zip_cache_filename = File.join(ZIP_CACHE_DIRECTORY, zip)
           unless FileTest.exist?(zip_cache_filename) and !FileTest.zero?(zip_cache_filename)
@@ -46,9 +59,16 @@ module CGIARCSI
             Tempfile.open(zip) do |tempfile|
               Net::HTTP.start(uri.host, uri.port) do |http|
                 http.request_get(uri.request_uri) do |request|
-                  raise unless request.is_a?(Net::HTTPOK)
-                  request.read_body do |segment|
-                    tempfile.write(segment)
+                  case request
+                  when Net::HTTPOK
+                    request.read_body do |segment|
+                      tempfile.write(segment)
+                    end
+                  when Net::HTTPNotFound
+                    FileUtils.touch("#{tile}.404")
+                    return NoTile.instance
+                  else
+                    raise request
                   end
                 end
               end
@@ -79,9 +99,9 @@ module CGIARCSI
                   mmap.madvise(Mmap::MADV_SEQUENTIAL)
                   mmap.extend(2 * 6000 * 6000)
                 end
-                mmap[0, 2 * 6000] = line.split(/\s+/).collect!(&:to_i).pack("n*")
+                mmap[0, 2 * 6000] = line.split(/\s+/).collect!(&:to_i).pack("s*")
                 1.upto(6000 - 1) do |i|
-                  mmap[2 * 6000 * i, 2 * 6000] = io.readline.split(/\s+/).collect!(&:to_i).pack("n*")
+                  mmap[2 * 6000 * i, 2 * 6000] = io.readline.split(/\s+/).collect!(&:to_i).pack("s*")
                 end
                 raise unless io.eof?
                 mmap.mprotect("r")
