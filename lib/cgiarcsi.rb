@@ -78,38 +78,13 @@ module CGIARCSI
           Zip::ZipInputStream.open(zip_cache_filename) do |zis|
             asc = "Z_%d_%d.ASC" % [x, y]
             while entry = zis.get_next_entry
-              if entry.name == asc
-                ncols = nrows = nil
-                io = entry.get_input_stream
-                line = nil
-                io.each do |line|
-                  case line
-                  when /\Ancols\s+(\d+)\s*\z/             then raise unless $1.to_i == 6000
-                  when /\Anrows\s+(\d+)\s*\z/             then raise unless $1.to_i == 6000
-                  when /\Axllcorner\s+(-?\d+)\s*\z/       then raise unless $1.to_i == 5 * (x - 37)
-                  when /\Ayllcorner\s+(-?\d+)\s*\z/       then raise unless $1.to_i == 5 * (12 - y)
-                  when /\Acellsize\s+(\d+(?:\.\d+))\s*\z/ then raise unless (6000 * $1.to_f - 5).abs < 1e-12
-                  when /\ANODATA_value\s+(-?\d+)\s*\z/    then raise unless $1.to_i == -9999
-                  else break
-                  end
-                end
-                mmap = nil
-                File.open(tile, "w") do |tileio|
-                  mmap = Mmap.new(tileio.path, "w")
-                  mmap.madvise(Mmap::MADV_SEQUENTIAL)
-                  mmap.extend(2 * 6000 * 6000)
-                end
-                mmap[0, 2 * 6000] = line.split(/\s+/).collect!(&:to_i).pack("s*")
-                1.upto(6000 - 1) do |i|
-                  mmap[2 * 6000 * i, 2 * 6000] = io.readline.split(/\s+/).collect!(&:to_i).pack("s*")
-                end
-                raise unless io.eof?
-                mmap.mprotect("r")
-                return super(mmap)
+              next unless entry.name == asc
+              File.open(tile, "w+") do |io|
+                CGIARCSI.parse_ASC(entry.get_input_stream, io)
               end
             end
           end
-          raise
+          return super(Mmap.new(tile))
         end
       end
 
@@ -129,3 +104,5 @@ module CGIARCSI
   end
 
 end
+
+require "ccgiarcsi"
