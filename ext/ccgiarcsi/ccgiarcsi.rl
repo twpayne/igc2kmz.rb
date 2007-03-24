@@ -150,7 +150,7 @@ rb_CGIARCSI_parse_ASC(VALUE rb_self, VALUE rb_src, VALUE rb_dst)
     %% write data;
     %% write init;
     while (cs != cgiarcsi_error) {
-	VALUE rb_buffer = rb_funcall(rb_src, id_read, 1, INT2NUM(4096));
+	VALUE rb_buffer = rb_funcall(rb_src, id_read, 1, INT2NUM(65536));
 	const char *p;
 	const char *pe;
 	if (rb_buffer == Qnil) {
