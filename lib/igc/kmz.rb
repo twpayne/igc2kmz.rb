@@ -385,7 +385,7 @@ class IGC
     hints.altitude_mode ||= altitude_data? ? :absolute : nil
     hints.xcs = hints.league.memoized_optimize(@bsignature, @fixes) if !hints.task and hints.league
     hints.scales = OpenStruct.new
-    hints.scales.altitude = Scale.new("altitude", 0..hints.bounds.alt.last, hints.units[:altitude])
+    hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, hints.units[:altitude])
     hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, hints.units[:climb])
     hints.scales.speed = Scale.new("speed", hints.bounds.speed, hints.units[:speed])
     fields = []
