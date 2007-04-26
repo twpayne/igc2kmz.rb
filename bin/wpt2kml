@@ -1,0 +1,119 @@
+#!/usr/bin/ruby
+# FIXME add UTM coordinate support
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "coord"
+require "kml"
+
+class Waypoint < Coord
+
+  attr_reader :name
+
+  def initialize(name, lat, lon, alt)
+    super(lat, lon, alt)
+    @name = name
+  end
+
+  def to_kml
+    point = KML::Point.new(:coordinates => self)
+    icon_style = KML::IconStyle.new(KML::Icon.character(@name[0]))
+    style = KML::Style.new(icon_style)
+    KML::Placemark.new(point, style, :name => @name)
+  end
+
+end
+
+class String
+
+  def deutf8
+    self.gsub(/\303\203\302./) do |s|
+      case s[3]
+      when 0242 then "a"
+      when 0250 then "e"
+      when 0251 then "e"
+      end
+    end
+  end
+
+end
+
+def main
+  waypoints = []
+  ARGF.each do |line|
+    name = lat = lon = alt = nil
+    case line.sub(/\s+\z/, "")
+    when /\A
+      W \s+
+      (\S{3})\.?(\d{3}) \s+
+      A \s+
+      (\d+\.\d+)[^NS]*([NS]) \s+
+      (\d+\.\d+)[^EW]*([EW]) \s+
+      \S+ \s+
+      \S+ \s+
+      (-?\d+(?:\.\d+)) \s+
+      (.*)
+      /x
+      md = Regexp.last_match
+      name = [md[1], md[8].strip.deutf8].join(" ")
+      lat = Radians.new_from_deg(Radians::HEMISPHERES[md[4]] * md[3].to_f)
+      lon = Radians.new_from_deg(Radians::HEMISPHERES[md[6]] * md[5].to_f)
+      alt = md[5].to_f
+      alt = 10 * md[2].to_i if alt < 0
+    when /\A
+      (\S{3})(\d{3}) \s+
+      ([NS]) \s+ (\d+) \s+ (\d+) \s+ (\d+,\d+) \s+
+      ([EW]) \s+ (\d+) \s+ (\d+) \s+ (\d+,\d+) \s+
+      (\d+) \s+
+      (.*)
+      \z/x
+      md = Regexp.last_match
+      name = [md[1], md[12].strip].join(" ")
+      lat = Radians.new_from_dmsh(md[4].to_i, md[5].to_i, md[6].sub(/,/, ".").to_f, md[3])
+      lon = Radians.new_from_dmsh(md[8].to_i, md[9].to_i, md[10].sub(/,/, ".").to_f, md[7])
+      alt = md[11].to_f
+      alt = 10 * md[2].to_i if alt < 0
+    when /\A
+      W \s+
+      (\S{3})(\d{3}) \s+
+      ([NS])(\d+\.\d+) \s+
+      ([EW])(\d+\.\d+) \s+
+      \S+ \s+
+      \S+ \s+
+      (-?\d+(?:\.\d+)?) \s+
+      (.{40})
+      /x
+      md = Regexp.last_match
+      name = [md[1], md[8].strip].join(" ")
+      lat = Radians.new_from_deg(Radians::HEMISPHERES[md[3]] * md[4].to_f)
+      lon = Radians.new_from_deg(Radians::HEMISPHERES[md[5]] * md[6].to_f)
+      alt = md[7].to_f
+      alt = 10 * md[2].to_i if alt < 0
+    when /\A
+      \s* \d+ \s*,
+      \s* (\S{3})(\d{3}) \s* ,
+      \s* (-?\d+\.\d+) \s* ,
+      \s* (-?\d+\.\d+) \s* ,
+      (?: \s* [^,]* \s* , ){6}
+      ([^,]*)
+      /x
+      md = Regexp.last_match
+      name = [md[1], md[5].sub(/\s*-*\s*\z/, "")].join(" ")
+      lat = Radians.new_from_deg(md[3].to_f)
+      lon = Radians.new_from_deg(md[4].to_f)
+      alt = 10 * md[2].to_i
+    else
+      $stderr.print(line)
+    end
+    waypoints << Waypoint.new(name, lat, lon, alt) if name
+  end
+  folders = {}
+  waypoints.each do |waypoint|
+    folder = (folders[waypoint.name[0, 1]] ||= KML::Folder.new("name" => waypoint.name[0, 1]))
+    folder.add(waypoint.to_kml)
+  end
+  KML.new(KML::Folder.new(*folders.keys.sort.collect do |key|
+    folders[key]
+  end)).pretty_write($stdout)
+end
+
+main if $0 == __FILE__
