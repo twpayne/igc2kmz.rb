@@ -302,12 +302,14 @@ class IGC
       # none folders
       stock.visible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 1)
       stock.invisible_none_folder = make_empty_folder(stock, :name => "None", :visibility => 0)
+      # paraglider icon
+      stock.kmz.merge_files("images/paraglider.png" => File.open("images/paraglider.png"))
       stock
     end
 
     def default_hints
       hints = OpenStruct.new
-      hints.animation_icon = KML::Icon.new(:href => "http://www.paraglidingforum.com/modules/leonardo/img/icon_cat_1.png")
+      hints.animation_icon = KML::Icon.new(:href => "images/paraglider.png")
       hints.color = KML::Color.color("red")
       hints.league = XC::Open
       hints.photo_max_width = 4096
@@ -448,7 +450,7 @@ class IGC
   end
 
   def animation(hints)
-    icon_style = KML::IconStyle.new(hints.animation_icon, :scale => ICON_SCALE)
+    icon_style = KML::IconStyle.new(hints.animation_icon, hints.color, :scale => ICON_SCALE)
     style = KML::Style.new(icon_style)
     folder = KML::Folder.new(style, :name => "Animation", :open => 0, :styleUrl => hints.stock.check_hide_children_style.url)
     point = KML::Point.new(:coordinates => @fixes[0], :altitudeMode => hints.altitude_mode)
