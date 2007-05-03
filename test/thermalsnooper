@@ -1,0 +1,101 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "bounds"
+require "coord"
+require "enumerator"
+require "find"
+require "igc"
+require "lib"
+require "kml"
+require "magick"
+require "narray"
+
+class Tile
+
+  def initialize(bounds, sizes)
+    @bounds = bounds
+    @sizes = sizes
+    @n = NArray.float(sizes[0], sizes[1])
+    @x = NArray.float(sizes[0], sizes[1])
+  end
+
+  def sample(lat, lon, n, x)
+    i = (@sizes[0] * (lon - @bounds.lon.first) / @bounds.lon.size).round
+    return self unless (0...@sizes[0]).include?(i)
+    j = (@sizes[1] * (lat - @bounds.lat.first) / @bounds.lat.size).round
+    return self unless (0...@sizes[1]).include?(j)
+    @n[i, j] += n
+    @x[i, j] += x
+    self
+  end
+
+  def inspect
+    (0...@sizes[0]).each do |i|
+      (0...@sizes[1]).each do |j|
+        print(@n[i, j].zero? ? " " : "*")
+      end
+      puts
+    end
+  end
+
+  def to_image
+    image = Magick::Image.new(@sizes[0], @sizes[1]) do
+      self.background_color = "transparent"
+    end
+    (0...@sizes[0]).each do |i|
+      (0...@sizes[1]).each do |j|
+        next if @n[i, j].zero?
+        value = @x[i, j] / (3 * @n[i, j]) + 0.5
+        color = Gradient::Default[value]
+        color.opacity = 2.0 * Math.atan2(@n[i, j], 1000.0) / Math::PI
+        image.pixel_color(@sizes[0] - i -1, @sizes[1] - j - 1, color)
+      end
+    end
+    image
+  end
+
+end
+
+def main(argv)
+  bounds = Bounds.new
+  #bounds.lon = [Radians.new_from_dmsh(5, 56, 0, "E"), Radians.new_from_dmsh(6, 25, 0, "E")].bounds
+  #bounds.lat = [Radians.new_from_dmsh(45, 29, 0, "N"), Radians.new_from_dmsh(45, 54, 0, "N")].bounds
+  bounds.lon = [Radians.new_from_dmsh(5, 36, 0, "E"), Radians.new_from_dmsh(6, 38, 0, "E")].bounds
+  bounds.lat = [Radians.new_from_dmsh(46, 4, 0, "N"), Radians.new_from_dmsh(45, 11, 0, "N")].bounds
+  tile = Tile.new(bounds, [bounds.lon.size / Radians.new_from_dmsh(0, 0, 5, "E"), bounds.lat.size / Radians.new_from_dmsh(0, 0, 5, "N")].collect(&:round))
+  argv.each do |arg|
+    Find.find(arg) do |path|
+      next unless FileTest.file?(path)
+      next unless /\.igc\z/i.match(path)
+      igc = File.open(path) { |file| IGC.new(file) }
+      next if igc.fixes.empty?
+      next unless bounds.lat.overlap?(igc.fixes.collect(&:lat).bounds)
+      next unless bounds.lon.overlap?(igc.fixes.collect(&:lon).bounds)
+      igc.fixes.each_cons(2) do |fix0, fix1|
+        next unless fix1.alt > fix0.alt
+        fix = fix0.halfway_to(fix1)
+        next unless bounds.lat.include?(fix.lat)
+        next unless bounds.lon.include?(fix.lon)
+        tile.sample(fix.lat, fix.lon, 1.0, (fix1.alt - fix0.alt).to_f / (fix1.time - fix0.time))
+      end
+    end
+  end
+  image = tile.to_image
+  image.write("tile.png")
+  ground_overlay = KML::GroundOverlay.new
+  ground_overlay.name = "Thermal map"
+  lat_lon_box = KML::LatLonBox.new
+  lat_lon_box.south = Radians.to_deg(bounds.lat.first)
+  lat_lon_box.north = Radians.to_deg(bounds.lat.last)
+  lat_lon_box.east = Radians.to_deg(bounds.lon.first)
+  lat_lon_box.west = Radians.to_deg(bounds.lon.last)
+  ground_overlay.add(lat_lon_box)
+  ground_overlay.add(KML::Icon.new(:href => image.filename))
+  document = KML::Document.new(ground_overlay)
+  File.open("doc.kml", "w") do |file|
+    KML.new(document).pretty_write(file)
+  end
+end
+
+main(ARGV) if $0 == __FILE__
