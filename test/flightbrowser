@@ -145,4 +145,4 @@ module FlightBrowser::Controllers
 end
 
 #FlightBrowser::Models::Flight.scan("/home/twp/doc/paragliding/igc")
-FlightBrowser::Models::Flight.scan("/home/twp/maximumxc/tmp/cfd")
+FlightBrowser::Models::Flight.scan("/home/twp/src/maximumxc/tmp/cfd")
