@@ -78,12 +78,8 @@ def main(argv)
         false
       end
     end
-    if neighbours.empty?
-      takeoffs << coord
-    else
-      takeoffs << neighbours.inject(coord) do |coord1, coord2|
-        coord1.merge(coord2)
-      end
+    takeoffs << neighbours.inject(coord) do |coord1, coord2|
+      coord1.merge(coord2)
     end
   end
   document = KML::Document.new
