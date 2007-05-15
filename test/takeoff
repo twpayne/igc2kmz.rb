@@ -1,0 +1,123 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "coord"
+require "kml"
+require "optparse"
+require "lib"
+require "yaml"
+
+class String
+
+  def character_frequencies
+    occurences = Hash.new(0)
+    each_byte do |byte|
+      occurences[byte] += 1
+    end
+    result = Hash.new(0)
+    occurences.each do |byte, count|
+      result[byte] = count.to_f / length
+    end
+    result
+  end
+
+  def similarity(other)
+    f1 = character_frequencies
+    f2 = other.character_frequencies
+    (f1.keys | f2.keys).inject(0) do |result, byte|
+      result + (f1[byte] - f2[byte]) ** 2
+    end
+  end
+
+end
+
+class WeightedCoord < Coord
+
+  attr_reader :weight
+
+  def initialize(coord, weight)
+    super(coord.lat, coord.lon, coord.alt)
+    @weight = weight
+  end
+
+  def merge(other)
+    self.class.new(interpolate(other, other.weight.length / (@weight.length + other.weight.length)), @weight.merge(other.weight))
+  end
+
+end
+
+def main(argv)
+  threshold = 1000.0
+  OptionParser.new do |op|
+    op.on("--threshold=VALUE", "-t", Numeric) do |arg|
+      threshold = arg
+    end
+    op.parse!(argv)
+  end
+  coords = []
+  argv.each do |filename|
+    File.open(filename) do |io|
+      io.each do |line|
+        next unless md = /\AB\d{6}(\d\d)(\d{5})([NS])(\d{3})(\d{5})([EW])[AV]\d{5}(\d{5})/.match(line)
+        lat = Radians.new_from_deg((md[1].to_i + 0.001 * md[2].to_i / 60) * (md[3] == "N" ? 1 : -1))
+        lon = Radians.new_from_deg((md[4].to_i + 0.001 * md[5].to_i / 60) * (md[6] == "E" ? 1 : -1))
+        alt = md[7].to_i
+        coords << WeightedCoord.new(Coord.new(lat, lon, alt), {filename => 1})
+        break
+      end
+    end
+  end
+  takeoffs = []
+  coords.each do |coord|
+    neighbours = []
+    takeoffs.delete_if do |takeoff|
+      if takeoff.distance_to(coord) < threshold
+        neighbours << takeoff
+        true
+      else
+        false
+      end
+    end
+    if neighbours.empty?
+      takeoffs << coord
+    else
+      takeoffs << neighbours.inject(coord) do |coord1, coord2|
+        coord1.merge(coord2)
+      end
+    end
+  end
+  document = KML::Document.new
+  icon_style = KML::IconStyle.new(KML::Icon.default, :scale => 0.5)
+  style = KML::Style.new(icon_style)
+  document.add(style)
+  takeoffs.each do |takeoff|
+    next if takeoff.weight.length < 2
+    placemark = KML::Placemark.new(KML::Point.new(:coordinates => takeoff))
+    names = takeoff.weight.keys.collect do |filename|
+      File.open(filename.sub(/\.igc\z/i, ".cfd")) do |io|
+        name = YAML.load(io)["Decollage"].downcase
+        name.sub!(/\bd[e\xe9]co\S*\s+(de\s+)?/, "")
+        name.sub!(/\b(st|sainte?)-?\s*/, "st ")
+        name.sub!(/\bm(t|ont|ontagne)\s+/, "")
+        name
+      end
+    end
+    # FIXME this should be O(N^2/2) rather than O(N^2)
+    similarities = Hash.new(0)
+    names.each do |n1|
+      names.each do |n2|
+        similarity = n1.similarity(n2)
+        similarities[n1] += similarity
+        similarities[n2] += similarity
+      end
+    end
+    names = similarities.keys.sort_by { |k| similarities[k] }
+    placemark.name = names[0]
+    placemark.description = KML::CData.new(names.join("<br/>"))
+    placemark.style_url = style.url
+    document.add(placemark)
+  end
+  KML.new(document).pretty_write($stdout)
+end
+
+main(ARGV) if $0 == __FILE__
