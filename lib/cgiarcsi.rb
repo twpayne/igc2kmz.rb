@@ -46,7 +46,7 @@ module CGIARCSI
 
       class << self
 
-        def new(x, y)
+        def new(x, y, download = true)
           return NoTile.instance unless (1..72).include?(x) and (1..24).include?(y)
           FileUtils.mkpath([TILE_CACHE_DIRECTORY, ZIP_CACHE_DIRECTORY])
           tile = File.join(TILE_CACHE_DIRECTORY, "srtm_%02d_%02d.tile" % [x, y])
@@ -55,6 +55,7 @@ module CGIARCSI
           zip = "srtm_%02d_%02d.zip" % [x, y]
           zip_cache_filename = File.join(ZIP_CACHE_DIRECTORY, zip)
           unless FileTest.exist?(zip_cache_filename) and !FileTest.zero?(zip_cache_filename)
+            return nil unless download
             uri = URI.parse("#{MIRROR}#{zip}")
             Tempfile.open(zip) do |tempfile|
               Net::HTTP.start(uri.host, uri.port) do |http|
@@ -91,6 +92,12 @@ module CGIARCSI
     end
 
     class << self
+
+      def available?(lat, lon)
+        x, i = (lon + 185 + 0.5 / 1200).divmod(5)
+        y, j = (65 - lat + 0.5 / 1200).divmod(5)
+        @@tiles[72 * (y - 1) + (x - 1)] ||= Tile.new(x, y, false)
+      end
 
       def [](lat, lon)
         x, i = (lon + 185 + 0.5 / 1200).divmod(5)
