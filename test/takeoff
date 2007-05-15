@@ -92,8 +92,9 @@ def main(argv)
     names = takeoff.weight.keys.collect do |filename|
       File.open(filename.sub(/\.igc\z/i, ".cfd")) do |io|
         name = YAML.load(io)["Decollage"].downcase
+        name.sub!(/\s*-\s*/, " ")
         name.sub!(/\bd[e\xe9]co\S*\s+(de\s+)?/, "")
-        name.sub!(/\b(st|sainte?)-?\s*/, "st ")
+        name.sub!(/\b(st|sainte?)\s+/, "st ")
         name.sub!(/\bm(t|ont|ontagne)\s+/, "")
         name
       end
