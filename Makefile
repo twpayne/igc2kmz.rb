@@ -1,15 +1,17 @@
-all: ext/ccgiarcsi/ccgiarcsi.so ext/ccoord/ccoord.so ext/cxc/cxc.so
+all: ext/ccgiarcsi/ccgiarcsi.so ext/ccoord/ccoord.so ext/cxc/cxc.so ext/ratcliff/ratcliff.so
 
 distclean: clean
 	rm ext/ccgiarcsi/Makefile
 	rm ext/ccoord/Makefile
 	rm ext/cxc/Makefile
+	rm ext/ratcliff/Makefile
 
-clean: ext/ccgiarcsi/Makefile ext/ccoord/Makefile ext/cxc/Makefile
+clean: ext/ccgiarcsi/Makefile ext/ccoord/Makefile ext/cxc/Makefile ext/ratcliff/Makefile
 	rm ext/ccgiarcsi/ccgiarcsi.c
 	cd ext/ccgiarcsi && make clean
 	cd ext/ccoord && make clean
 	cd ext/cxc && make clean
+	cd ext/ratcliff && make clean
 
 ext/ccgiarcsi/ccgiarcsi.so: ext/ccgiarcsi/Makefile ext/ccgiarcsi/ccgiarcsi.c
 	cd ext/ccgiarcsi && make
@@ -32,5 +34,12 @@ ext/cxc/cxc.so: ext/cxc/Makefile ext/cxc/cxc.c
 ext/cxc/Makefile: ext/cxc/extconf.rb
 	cd ext/cxc && ruby extconf.rb
 
+ext/ratcliff/ratcliff.so: ext/ratcliff/Makefile ext/ratcliff/ratcliff.c
+	cd ext/ratcliff && make
+
+ext/ratcliff/Makefile: ext/ratcliff/extconf.rb
+	cd ext/ratcliff && ruby extconf.rb
+
 check:
 	ruby test/test_lib.rb
+	ruby -Iext/ratcliff ext/ratcliff/testratcliff.rb
