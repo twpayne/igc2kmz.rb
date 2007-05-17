@@ -39,7 +39,6 @@ String_ratcliff(VALUE self, VALUE s)
 		return INT2FIX(RSTRING(self)->ptr[0] == RSTRING(s)->ptr[0] ? 1 : 0);
 	else
 		return rb_float_new(2.0 * ratcliff_obershelp(RSTRING(self)->ptr, RSTRING(self)->ptr + RSTRING(self)->len, RSTRING(s)->ptr, RSTRING(s)->ptr + RSTRING(s)->len) / (RSTRING(self)->len + RSTRING(s)->len));
-
 }
 
 void Init_ratcliff(void)
