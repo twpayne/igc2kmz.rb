@@ -101,6 +101,17 @@ def main
       lat = Radians.new_from_deg(md[3].to_f)
       lon = Radians.new_from_deg(md[4].to_f)
       alt = 10 * md[2].to_i
+    when /\A
+      \s* (\d+(?:\.\d+)?) \s* ,
+      \s* (\d+(?:\.\d+)?) \s* ,
+      \s* (\d+)
+      \s+ (.*)
+      \z/x
+      md = Regexp.last_match
+      name = md[4].strip
+      lon = Radians.new_from_deg(md[1].to_f)
+      lat = Radians.new_from_deg(md[2].to_f)
+      alt = md[3].to_i
     else
       $stderr.print(line)
     end

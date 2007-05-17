@@ -1,54 +1,69 @@
 #!/usr/bin/ruby
 
 $:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "cgiarcsi"
 require "coord"
+require "iconv"
 require "kml"
 require "optparse"
 require "lib"
+require "ratcliff"
 require "yaml"
-
-class String
-
-  def character_frequencies
-    occurences = Hash.new(0)
-    each_byte do |byte|
-      occurences[byte] += 1
-    end
-    result = Hash.new(0)
-    occurences.each do |byte, count|
-      result[byte] = count.to_f / length
-    end
-    result
-  end
-
-  def similarity(other)
-    f1 = character_frequencies
-    f2 = other.character_frequencies
-    (f1.keys | f2.keys).inject(0) do |result, byte|
-      result + (f1[byte] - f2[byte]) ** 2
-    end
-  end
-
-end
 
 class WeightedCoord < Coord
 
-  attr_reader :weight
+  attr_reader :weight, :names
 
-  def initialize(coord, weight)
+  def initialize(coord, weight, names)
     super(coord.lat, coord.lon, coord.alt)
     @weight = weight
+    @names = names
   end
 
   def merge(other)
-    self.class.new(interpolate(other, other.weight.length / (@weight.length + other.weight.length)), @weight.merge(other.weight))
+    result = self.class.new(interpolate(other, other.weight / (@weight + other.weight)), @weight + other.weight, @names.merge(other.names))
+    result.alt = @alt if other.alt.zero?
+    result.alt = other.alt if @alt.zero?
+    result
+  end
+
+  def popular_names
+    # FIXME this should be O(N^2/2) rather than O(N^2)
+    popularities = Hash.new(0)
+    n = @names.keys
+    n.each do |n1|
+      n.each do |n2|
+        similarity = n1.ratcliff(n2)
+        popularities[n1] += similarity
+        popularities[n2] += similarity
+      end
+    end
+    popularities.keys.sort_by { |k| -popularities[k] }
+  end
+
+  def to_compegps(short_name)
+    name = "%s%03d %s" % [short_name, (@alt + 5) / 10, popular_names[0].upcase]
+    "W  %s A %.10f\xba%s %.10f\xba%s 01-JAN-2000 00:00:00 %.6f %s" % [name.gsub(/\W+/, ""), Radians.to_deg(@lat).abs, @lat < 0.0 ? "S" : "N", Radians.to_deg(@lon).abs, @lon < 0.0 ? "W" : "E", @alt, name]
+  end
+
+  def to_kml(short_name, style)
+    placemark = KML::Placemark.new(KML::Point.new(:coordinates => self))
+    pnames = popular_names
+    placemark.name = "%s%03d %s" % [short_name, (@alt + 5) / 10, pnames[0].upcase]
+    placemark.description = KML::CData.new(pnames[1..-1].join("<br/>")) if pnames.length > 1
+    placemark.style_url = style.url
+    placemark
   end
 
 end
 
 def main(argv)
-  threshold = 1000.0
+  format = :kml
+  threshold = 500.0
   OptionParser.new do |op|
+    op.on("--format=VALUE", "-f", [:compegps, :kml]) do |arg|
+      format = arg
+    end
     op.on("--threshold=VALUE", "-t", Numeric) do |arg|
       threshold = arg
     end
@@ -62,7 +77,22 @@ def main(argv)
         lat = Radians.new_from_deg((md[1].to_i + 0.001 * md[2].to_i / 60) * (md[3] == "N" ? 1 : -1))
         lon = Radians.new_from_deg((md[4].to_i + 0.001 * md[5].to_i / 60) * (md[6] == "E" ? 1 : -1))
         alt = md[7].to_i
-        coords << WeightedCoord.new(Coord.new(lat, lon, alt), {filename => 1})
+        name = File.open(filename.sub(/\.igc\z/i, ".cfd")) do |io|
+          YAML.load(io)["Decollage"]
+        end
+        name.gsub!(/[\xe0-\xe5]/, "a")
+        name.gsub!(/\xe7/, "c")
+        name.gsub!(/[\xe8-\xeb]/, "e")
+        name.gsub!(/[\xcc-\xcf\xec-\xef]/, "i")
+        name.gsub!(/[\xf2-\xf6]/, "o")
+        name.gsub!(/[\xf9-\xfc]/, "u")
+        name.gsub!(/[\x80-\xff]+/, "")
+        name.gsub!(/\s*-\s*/, " ")
+        name.gsub!(/\bdeco(llage)?(\s+de)?\s*/i, "")
+        name.gsub!(/\b(st|sainte?)\b\s*/i, "st ")
+        name.gsub!(/\bm(t|ont|ontagne)\b\s*/i, "")
+        name.downcase!
+        coords << WeightedCoord.new(Coord.new(lat, lon, alt), 1, {name => 1})
         break
       end
     end
@@ -82,39 +112,30 @@ def main(argv)
       coord1.merge(coord2)
     end
   end
-  document = KML::Document.new
-  icon_style = KML::IconStyle.new(KML::Icon.default, :scale => 0.5)
-  style = KML::Style.new(icon_style)
-  document.add(style)
   takeoffs.each do |takeoff|
-    next if takeoff.weight.length < 2
-    placemark = KML::Placemark.new(KML::Point.new(:coordinates => takeoff))
-    names = takeoff.weight.keys.collect do |filename|
-      File.open(filename.sub(/\.igc\z/i, ".cfd")) do |io|
-        name = YAML.load(io)["Decollage"].downcase
-        name.sub!(/\s*-\s*/, " ")
-        name.sub!(/\bd[e\xe9]co\S*\s+(de\s+)?/, "")
-        name.sub!(/\b(st|sainte?)\s+/, "st ")
-        name.sub!(/\bm(t|ont|ontagne)\s+/, "")
-        name
-      end
-    end
-    # FIXME this should be O(N^2/2) rather than O(N^2)
-    similarities = Hash.new(0)
-    names.each do |n1|
-      names.each do |n2|
-        similarity = n1.similarity(n2)
-        similarities[n1] += similarity
-        similarities[n2] += similarity
-      end
-    end
-    names = similarities.keys.sort_by { |k| similarities[k] }
-    placemark.name = names[0]
-    placemark.description = KML::CData.new(names.join("<br/>"))
-    placemark.style_url = style.url
-    document.add(placemark)
+    takeoff.alt = CGIARCSI::SRTM90mDEM[Radians.to_deg(takeoff.lat), Radians.to_deg(takeoff.lon)]
   end
-  KML.new(document).pretty_write($stdout)
+  case format
+  when :compegps
+    puts("G  WGS 84")
+    puts("U  1")
+    short_name = "A00"
+    takeoffs.each do |takeoff|
+      next if takeoff.weight < 2
+      puts(takeoff.to_compegps(short_name.succ!))
+    end
+  when :kml
+    document = KML::Document.new
+    icon_style = KML::IconStyle.new(KML::Icon.default, :scale => 0.5)
+    style = KML::Style.new(icon_style)
+    document.add(style)
+    short_name = "A00"
+    takeoffs.each do |takeoff|
+      next if takeoff.weight < 2
+      document.add(takeoff.to_kml(short_name.succ!, style))
+    end
+    KML.new(document).pretty_write($stdout)
+  end
 end
 
 main(ARGV) if $0 == __FILE__
