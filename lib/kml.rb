@@ -32,7 +32,7 @@ class KML
     @kml.write(io)
   end
 
-  def pretty_write(io, indent = "  ")
+  def pretty_write(io, indent = "\t")
     io.write("<?xml version=\"1.0\"?>\n")
     @kml.pretty_write(io, indent, "")
   end
