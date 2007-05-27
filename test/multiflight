@@ -1,0 +1,33 @@
+#!/usr/bin/ruby
+
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "igc"
+require "kml"
+require "kml/rmagick"
+require "RMagick"
+
+class IGC
+
+  def to_kml
+    hue = @bsignature.hex.to_f / 2 ** 128
+    color = KML::Color.pixel(Magick::Pixel.from_HSL([hue, 1.0, 0.5]))
+    style = KML::Style.new(KML::LineStyle.new(color))
+    line_string = KML::LineString.new(:coordinates => @fixes, :altitudeMode => :absolute)
+    KML::Placemark.new(line_string, style, :name => filename)
+  end
+
+end
+
+def main(argv)
+  folder = KML::Folder.new
+  argv.each do |arg|
+    File.open(arg) do |io|
+      folder.add(IGC.new(io).to_kml)
+    end
+  end
+  KML.new(folder).pretty_write($stdout)
+end
+
+main(ARGV) if $0 == __FILE__
