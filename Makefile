@@ -59,5 +59,6 @@ ext/ratcliff/Makefile: ext/ratcliff/extconf.rb
 	cd ext/ratcliff && ruby extconf.rb
 
 check:
+	ruby test/test_geometry.rb
 	ruby test/test_lib.rb
 	ruby -Iext/ratcliff ext/ratcliff/testratcliff.rb
