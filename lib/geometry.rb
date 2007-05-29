@@ -36,6 +36,10 @@ class Plane
     @c = c
   end
 
+  def normal
+    (@b - @a).cross(@c - @a)
+  end
+
 end
 
 require "cgeometry"

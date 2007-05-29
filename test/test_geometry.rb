@@ -37,3 +37,15 @@ class TC_Point < Test::Unit::TestCase
   end
 
 end
+
+class TC_Plane < Test::Unit::TestCase
+
+  def setup
+    @plane = Plane.new(Point.new(0, 0, 0), Point.new(1, 0, 0), Point.new(0, 1, 0))
+  end
+
+  def test_normal
+    assert_equal(@plane.normal, Point.new(0, 0, 1))
+  end
+
+end

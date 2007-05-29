@@ -97,6 +97,24 @@ rb_point_equal(VALUE obj, VALUE oth)
 }
 
 static VALUE
+rb_point_mag(VALUE obj)
+{
+    double x = NUM2DBL(rb_funcall(obj, id_x, 0));
+    double y = NUM2DBL(rb_funcall(obj, id_y, 0));
+    double z = NUM2DBL(rb_funcall(obj, id_z, 0));
+    return rb_float_new(sqrt(x * x + y * y + z * z));
+}
+
+static VALUE
+rb_point_mag2(VALUE obj)
+{
+    double x = NUM2DBL(rb_funcall(obj, id_x, 0));
+    double y = NUM2DBL(rb_funcall(obj, id_y, 0));
+    double z = NUM2DBL(rb_funcall(obj, id_z, 0));
+    return rb_float_new(x * x + y * y + z * z);
+}
+
+static VALUE
 rb_point_minus(VALUE obj, VALUE oth)
 {
     double x1 = NUM2DBL(rb_funcall(obj, id_x, 0));
@@ -172,6 +190,8 @@ Init_cgeometry(void)
     rb_define_method(rb_cPoint, "cross", rb_point_cross, 1);
     rb_define_method(rb_cPoint, "dot", rb_point_dot, 1);
     rb_define_method(rb_cPoint, "eql?", rb_point_equal, 1);
+    rb_define_method(rb_cPoint, "mag", rb_point_mag, 0);
+    rb_define_method(rb_cPoint, "mag2", rb_point_mag2, 0);
     rb_define_method(rb_cPoint, "==", rb_point_equal, 1);
     rb_define_method(rb_cPoint, "*", rb_point_times, 1);
     rb_define_method(rb_cPoint, "/", rb_point_divide, 1);
