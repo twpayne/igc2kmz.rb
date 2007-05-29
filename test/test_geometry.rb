@@ -24,6 +24,10 @@ class TC_Point < Test::Unit::TestCase
     assert_equal(Point.new(1, 2, 3) - Point.new(4, 5, 6), Point.new(-3, -3, -3))
   end
 
+  def test_normalize
+    assert_equal(Point.new(1, 1, 1).normalize.mag, 1.0)
+  end
+
   def test_plus
     assert_equal(Point.new(1, 2, 3) + Point.new(4, 5, 6), Point.new(5, 7, 9))
   end
@@ -34,6 +38,18 @@ class TC_Point < Test::Unit::TestCase
 
   def test_uminus
     assert_equal(-Point.new(1, 2, 3), Point.new(-1, -2, -3))
+  end
+
+end
+
+class TC_Line < Test::Unit::TestCase
+
+  def setup
+    @line = Line.new(Point.new(0, 0, 0), Point.new(1, 1, 1))
+  end
+
+  def test_direction
+    assert_equal(@line.direction, Point.new(1, 1, 1).normalize)
   end
 
 end

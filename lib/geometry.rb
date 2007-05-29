@@ -22,6 +22,10 @@ class Line
     @b = b
   end
 
+  def direction
+    (@b - @a).normalize!
+  end
+
 end
 
 class Plane
