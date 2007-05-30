@@ -26,6 +26,10 @@ class Line
     (@b - @a).normalize!
   end
 
+  def distance_to(point)
+    (@b - @a).cross(@a - point).mag / (@a - @b).mag
+  end
+
 end
 
 class Plane

@@ -52,6 +52,12 @@ class TC_Line < Test::Unit::TestCase
     assert_equal(@line.direction, Point.new(1, 1, 1).normalize)
   end
 
+  def test_distance_to
+    assert_equal(@line.distance_to(Point.new(2, 2, 2)), 0)
+    assert_equal(Line.new(Point.new(0, 0, 0), Point.new(1, 0, 0)).distance_to(Point.new(0, 2, 0)), 2)
+    assert_equal(Line.new(Point.new(0, 0, 0), Point.new(2, 0, 0)).distance_to(Point.new(0, 3, 4)), 5)
+  end
+
 end
 
 class TC_Plane < Test::Unit::TestCase
