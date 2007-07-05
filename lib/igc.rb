@@ -84,8 +84,14 @@ class IGC
     "SIT" => :site,
   }
 
-  def initialize(io)
-    @filename = io.respond_to?(:path) ? File.basename(io.path) : nil
+  def initialize(io, options = {})
+    if options[:filename]
+      @filename = options[:filename]
+    elsif io.respond_to?(:path)
+      @filename = File.basename(io.path)
+    else
+      @filename = nil
+    end
     @flight_recorder = {}
     @header = {}
     @tz_offset = 0
