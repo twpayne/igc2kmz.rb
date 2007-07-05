@@ -1,0 +1,49 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "digest/md5"
+require "igc"
+require "kml"
+require "kml/rmagick"
+require "optparse"
+require "zip/zipfilesystem"
+
+class IGC
+
+  def to_kml
+    hue = Digest::MD5.hexdigest(@filename).hex.to_f / 2 ** 128
+    color = KML::Color.pixel(Magick::Pixel.from_HSL([hue, 1.0, 0.5]))
+    line_style = KML::LineStyle.new(color)
+    style = KML::Style.new(line_style)
+    line_string = KML::LineString.new(:coordinates => @fixes, :altitudeMode => :absolute)
+    placemark = KML::Placemark.new(style, line_string)
+    KML::Folder.new(placemark, :name => @filename)
+  end
+
+end
+
+def main(argv)
+  OptionParser.new do |op|
+    op.parse!(argv)
+  end
+  folder = KML::Folder.new
+  argv.each do |arg|
+    case arg
+    when /\.igc\z/i
+      File.open(arg) do |io|
+        folder.add(IGC.new(io).to_kml)
+      end
+    when /\.zip\z/i
+      Zip::ZipInputStream.open(arg) do |zis|
+        while entry = zis.get_next_entry
+          folder.add(IGC.new(zis.read, :filename => entry.name).to_kml)
+        end
+      end
+    else
+      raise
+    end
+  end
+  KML.new(folder).write($stdout)
+end
+
+main(ARGV) if $0 == __FILE__
