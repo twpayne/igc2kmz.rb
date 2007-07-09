@@ -1,0 +1,24 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+require "track/igc"
+require "track/tnc"
+
+def main(argv)
+  argv.each do |arg|
+    puts("# #{arg}")
+    File.open(arg) do |file|
+      case arg
+      when /\.igc\z/i
+        igc = Track::IGC.new(file)
+        unless igc.unknowns.empty?
+          puts(igc.unknowns.join("\n"))
+        end
+      when /\.tnc\z/i
+        Track::TNC.new(file)
+      end
+    end
+  end
+end
+
+main(ARGV) if $0 == __FILE__
