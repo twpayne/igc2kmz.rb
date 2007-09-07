@@ -14,10 +14,10 @@ def main(args)
   year = nil
   OptionParser.new do |op|
     op.on("-a", "--all") do
-      uris << "http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdSmartList.php?&pTypeList=all&pSelect=igcFile+%21%3D+%27%27+"
+      uris << "http://cfd.ffvl.fr/cfd/cfdSmartList.php?&pTypeList=all&pSelect=igcFile+%21%3D+%27%27+"
     end
     op.on("-l", "--last") do
-      uris << "http://www.ffvl.fr/Competition/Parapente/cfd_pp/cfd/cfdListLast.php"
+      uris << "http://cfd.ffvl.fr/cfd/cfdListLast.php"
     end
     op.on("-v", "--verbose") do
       verbose = true
@@ -29,9 +29,9 @@ def main(args)
   end
   uris.concat(args)
   header = {}
-  Net::HTTP.start("www.ffvl.fr") do |http|
+  Net::HTTP.start("cfd.ffvl.fr") do |http|
     if year
-      http.request_get("/Competition/Parapente/cfd_pp/cfd/cfd.php?cfdYear=#{year}") do |response|
+      http.request_get("/cfd/cfd.php?cfdYear=#{year}") do |response|
         header["Cookie"] = response["set-cookie"]
       end
     end
