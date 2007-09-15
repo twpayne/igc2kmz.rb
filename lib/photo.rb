@@ -24,8 +24,8 @@ class Photo
         @jpeg = EXIFR::JPEG.new(io)
       end
     end
-    raise "no EXIF information" unless @jpeg.exif
-    raise "no DateTimeOriginal tag" unless @jpeg.exif.date_time_original
+    raise "no EXIF information (#{@uri})" unless @jpeg.exif
+    raise "no DateTimeOriginal tag (#{@uri})" unless @jpeg.exif.date_time_original
     @time = Time.utc(*@jpeg.exif.date_time_original.to_a[0, 6].reverse)
   end
 
