@@ -14,11 +14,11 @@ module XC
   class Turnpoint
 
     def to_gpx
-      trkpt = GPX::TrkPt.new("lat" => Radians.to_deg(@lat), "lon" => Radians.to_deg(@lon))
-      trkpt.add(GPX::League.new(@league.name))
-      trkpt.add(GPX::Name.new(@name))
-      trkpt.add(GPX::Time.new(@time.to_gpx))
-      trkpt
+      rtept = GPX::RtePt.new("lat" => Radians.to_deg(@lat), "lon" => Radians.to_deg(@lon))
+      rtept.add(GPX::Name.new(@name))
+      rtept.add(GPX::Ele.new(@alt))
+      rtept.add(GPX::Time.new(@time.to_gpx))
+      rtept
     end
 
   end
@@ -26,12 +26,17 @@ module XC
   class Flight
 
     def to_gpx
-      trk = GPX::Rte.new
-      trk.add(GPX::Name.new(name))
-      trk.add(GPX::Circuit.new) if circuit?
-      trk.add(GPX::Multiplier.new(multiplier)) unless multiplier == 1.0
-      @turnpoints.collect(&:to_gpx).each(&trk.method(:add))
-      trk
+      rte = GPX::Rte.new
+      rte.add(GPX::Desc.new(type))
+      extensions = GPX::Extensions.new
+      extensions.add(REXML::Element.new("distance").add_text(@distance.to_s))
+      extensions.add(REXML::Element.new("multiplier").add_text(MULTIPLIER.to_s))
+      extensions.add(REXML::Element.new("score").add_text(@score.to_s))
+      rte.add(extensions)
+      rte.add(GPX::Circuit.new) if circuit?
+      rte.add(GPX::Multiplier.new(multiplier)) unless multiplier == 1.0
+      @turnpoints.collect(&:to_gpx).each(&rte.method(:add))
+      rte
     end
 
   end
