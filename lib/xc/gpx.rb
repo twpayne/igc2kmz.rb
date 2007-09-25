@@ -4,8 +4,9 @@ require "xc"
 class GPX
 
   element :Circuit
-  element :League
+  element :Distance
   element :Multiplier
+  element :Score
 
 end
 
@@ -29,11 +30,11 @@ module XC
       rte = GPX::Rte.new
       rte.add(GPX::Desc.new(type))
       extensions = GPX::Extensions.new
-      extensions.add(REXML::Element.new("distance").add_text(@distance.to_s))
-      extensions.add(REXML::Element.new("multiplier").add_text(MULTIPLIER.to_s))
-      extensions.add(REXML::Element.new("score").add_text(@score.to_s))
+      extensions.add(GPX::Circuit.new) if circuit?
+      extensions.add(GPX::Distance.new(@distance.to_s))
+      extensions.add(GPX::Multiplier.new(MULTIPLIER.to_s))
+      extensions.add(GPX::Score.new(@score.to_s))
       rte.add(extensions)
-      rte.add(GPX::Circuit.new) if circuit?
       rte.add(GPX::Multiplier.new(multiplier)) unless multiplier == 1.0
       @turnpoints.collect(&:to_gpx).each(&rte.method(:add))
       rte

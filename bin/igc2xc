@@ -1,0 +1,35 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+
+require "gpx"
+require "igc"
+require "igc/analysis"
+require "igc/filter"
+require "optparse"
+require "xc"
+require "xc/gpx"
+require "yaml"
+
+def main(argv)
+  league = XC::FRCFD
+  OptionParser.new do |op|
+    op.on("-x", "--xc-league=LEAGUE", XC.leagues_hash, "XC league") do |arg|
+      league = arg
+    end
+    op.parse!(argv)
+  end
+  igc = IGC.new(ARGF)
+  igc.filter_duplicate_fixes!
+  igc.analyse
+  name = GPX::Name.new(igc.header[:pilot])
+  desc = GPX::Desc.new(league.description)
+  bounds = GPX::Bounds.new({"minlat" => igc.bounds.lat.first.to_deg, "minlon" => igc.bounds.lon.first.to_deg, "maxlat" => igc.bounds.lat.last.to_deg, "maxlon" => igc.bounds.lon.last.to_deg})
+  time = GPX::Time.new(igc.fixes[0].time.to_gpx)
+  metadata = GPX::Metadata.new(name, desc, bounds, time)
+  rtes = league.memoized_optimize(igc.bsignature, igc.fixes).sort_by(&:score).reverse.collect(&:to_gpx)
+  GPX.new(metadata, *rtes).write($stdout, 0)
+  puts
+end
+
+main(ARGV) if $0 == __FILE__
