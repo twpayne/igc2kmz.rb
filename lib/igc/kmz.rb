@@ -1,3 +1,4 @@
+require "rubygems"
 require "RMagick"
 require "html"
 require "igc"
