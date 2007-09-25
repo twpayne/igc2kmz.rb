@@ -28,6 +28,14 @@ module Radians
 
 end
 
+class Numeric
+
+  def to_deg
+    Radians.to_deg(self)
+  end
+
+end
+
 class Coord
 
   attr_accessor :lat
