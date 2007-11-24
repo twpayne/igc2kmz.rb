@@ -16,9 +16,10 @@ class Waypoint < Coord
 
   def to_kml
     point = KML::Point.new(:coordinates => self)
-    icon_style = KML::IconStyle.new(KML::Icon.character(@name[0]), :scale => 0.25)
+    icon_style = KML::IconStyle.new(KML::Icon.character(@name[0]))
     style = KML::Style.new(icon_style)
-    KML::Placemark.new(point, style, :name => @name)
+    n, d = @name.split(/\s+/, 2)
+    KML::Placemark.new(point, style, :name => n, :description => d)
   end
 
 end
