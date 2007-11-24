@@ -64,14 +64,14 @@ class TC_Geoid < Test::Unit::TestCase
   end
 
   def test_llh_to_xyz
-    xyz = @projection.ellipsoid.llh_to_xyz(@llh)
+    xyz = @projection.ell.llh_to_xyz(@llh)
     assert_to_dp(@xyz[0], xyz[0], 3)
     assert_to_dp(@xyz[1], xyz[1], 3)
     assert_to_dp(@xyz[2], xyz[2], 3)
   end
 
   def test_xyz_to_llh
-    llh = @projection.ellipsoid.xyz_to_llh(@xyz)
+    llh = @projection.ell.xyz_to_llh(@xyz)
     assert_in_delta(@llh[0], llh[0], @ll_delta)
     assert_in_delta(@llh[1], llh[1], @ll_delta)
     assert_to_dp(@llh[2], llh[2], 3)
@@ -101,7 +101,7 @@ class TC_Geoid < Test::Unit::TestCase
   end
 
   def teardown
-    @ellipsoid = nil
+    @ell = nil
   end
 
 end

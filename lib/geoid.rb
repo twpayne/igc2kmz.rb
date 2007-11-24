@@ -32,29 +32,29 @@ module Geoid
 
     def llh_to_xyz(llh)
       return nil if llh.nil?
-      latitude, longitude, height = llh
-      nu = @a / Math.sqrt(1.0 - @e2 * Math.sin(latitude) * Math.sin(latitude))
-      x = (nu + height) * Math.cos(latitude) * Math.cos(longitude)
-      y = (nu + height) * Math.cos(latitude) * Math.sin(longitude)
-      z = ((1.0 - @e2) * nu + height) * Math.sin(latitude)
+      lat, lon, height = llh
+      nu = @a / Math.sqrt(1.0 - @e2 * Math.sin(lat) * Math.sin(lat))
+      x = (nu + height) * Math.cos(lat) * Math.cos(lon)
+      y = (nu + height) * Math.cos(lat) * Math.sin(lon)
+      z = ((1.0 - @e2) * nu + height) * Math.sin(lat)
       [x, y, z]
     end
 
     def xyz_to_llh(xyz, precision = 0.000000001)
       return nil if xyz.nil?
       x, y, z = xyz
-      longitude = Math.atan2(y, x)
+      lon = Math.atan2(y, x)
       p = Math.sqrt(x * x + y * y)
-      latitude = Math.atan2(z, p * (1.0 - @e2))
-      nu = @a / Math.sqrt(1.0 - @e2 * Math.sin(latitude) * Math.sin(latitude))
+      lat = Math.atan2(z, p * (1.0 - @e2))
+      nu = @a / Math.sqrt(1.0 - @e2 * Math.sin(lat) * Math.sin(lat))
       while true
-        latitude = Math.atan2(z + @e2 * nu * Math.sin(latitude), p)
-        new_nu = @a / Math.sqrt(1.0 - @e2 * Math.sin(latitude) * Math.sin(latitude))
+        lat = Math.atan2(z + @e2 * nu * Math.sin(lat), p)
+        new_nu = @a / Math.sqrt(1.0 - @e2 * Math.sin(lat) * Math.sin(lat))
         break if (new_nu - nu).abs < precision
         nu = new_nu
       end
-      height = p / Math.cos(latitude) - nu
-      [latitude, longitude, height]
+      height = p / Math.cos(lat) - nu
+      [lat, lon, height]
     end
 
     Airy1830          = Ellipsoid.new(6_377_563.396, 6_356_256.910)
@@ -112,88 +112,88 @@ module Geoid
 
   class TransverseMercatorProjection < Projection
  
-    attr_accessor(:f0, :latitude0, :longitude0, :easting0, :northing0, :ellipsoid)
+    attr_accessor(:f0, :lat0, :lon0, :east0, :north0, :ell)
 
-    def initialize(f0, latitude0, longitude0, easting0, northing0, ellipsoid)
+    def initialize(f0, lat0, lon0, east0, north0, ell)
       @f0 = f0
-      @latitude0 = latitude0
-      @longitude0 = longitude0
-      @easting0 = easting0
-      @northing0 = northing0
-      @ellipsoid = ellipsoid
+      @lat0 = lat0
+      @lon0 = lon0
+      @east0 = east0
+      @north0 = north0
+      @ell = ell
     end
 
     def llh_to_enh(llh)
       return nil if llh.nil?
-      latitude, longitude, height = llh
-      sin_latitude = Math.sin(latitude)
-      sin_latitude2 = sin_latitude * sin_latitude
-      cos_latitude = Math.cos(latitude)
-      cos_latitude2 = cos_latitude * cos_latitude
-      cos_latitude4 = cos_latitude2 * cos_latitude2
-      tan_latitude = Math.tan(latitude)
-      tan_latitude2 = tan_latitude * tan_latitude
-      tan_latitude4 = tan_latitude2 * tan_latitude2
-      delta_latitude = latitude - @latitude0
-      sigma_latitude = latitude + @latitude0
-      delta_longitude = longitude - @longitude0
-      delta_longitude2 = delta_longitude * delta_longitude
-      delta_longitude4 = delta_longitude2 * delta_longitude2
-      n = (@ellipsoid.a - @ellipsoid.b) / (@ellipsoid.a + @ellipsoid.b)
+      lat, lon, height = llh
+      sin_lat = Math.sin(lat)
+      sin_lat2 = sin_lat * sin_lat
+      cos_lat = Math.cos(lat)
+      cos_lat2 = cos_lat * cos_lat
+      cos_lat4 = cos_lat2 * cos_lat2
+      tan_lat = Math.tan(lat)
+      tan_lat2 = tan_lat * tan_lat
+      tan_lat4 = tan_lat2 * tan_lat2
+      delta_lat = lat - @lat0
+      sigma_lat = lat + @lat0
+      delta_lon = lon - @lon0
+      delta_lon2 = delta_lon * delta_lon
+      delta_lon4 = delta_lon2 * delta_lon2
+      n = (@ell.a - @ell.b) / (@ell.a + @ell.b)
       n2 = n * n
-      nu = @ellipsoid.a * @f0 / Math.sqrt(1.0 - @ellipsoid.e2 * sin_latitude2)
-      rho = @ellipsoid.a * @f0 * (1.0 - @ellipsoid.e2) * (1.0 - @ellipsoid.e2 * sin_latitude2) ** -1.5
+      nu = @ell.a * @f0 / Math.sqrt(1.0 - @ell.e2 * sin_lat2)
+      rho = @ell.a * @f0 * (1.0 - @ell.e2) * (1.0 - @ell.e2 * sin_lat2) ** -1.5
       eta2 = nu / rho - 1.0
-      m = @ellipsoid.b * @f0 * ((1.0 + n + 5.0 * n2 / 4.0 + 5.0 * n * n2 / 4.0) * delta_latitude - (3.0 * n + 3.0 * n2 + 21.0 * n * n2 / 8.0) * Math.sin(delta_latitude) * Math.cos(sigma_latitude) + (15.0 * n2 / 8.0 + 15.0 * n * n2 / 8.0) * Math.sin(2.0 * delta_latitude) * Math.cos(2.0 * sigma_latitude) - (35.0 * n / 24.0) * n2 * Math.sin(3.0 * delta_latitude) * Math.cos(3.0 * sigma_latitude))
-      i = m + @northing0
-      ii = nu * sin_latitude * cos_latitude / 2.0
-      iii = nu * sin_latitude * cos_latitude * cos_latitude2 * (5.0 - tan_latitude2 + 9.0 * eta2) /  24.0
-      iiia = nu * sin_latitude * cos_latitude * cos_latitude4 * (61.0 - 58.0 * tan_latitude2 + tan_latitude4) / 720.0
-      iv = nu * cos_latitude
-      v = nu * cos_latitude * cos_latitude2 * (nu / rho - tan_latitude2) / 6.0
-      vi = nu * cos_latitude * cos_latitude4 * (5.0 - 18.0 * tan_latitude2 + tan_latitude4 + 14.0 * eta2 - 58.0 * tan_latitude2 * eta2) / 120.0
-      northing = i + ii * delta_longitude2 + iii * delta_longitude4 + iiia * delta_longitude2 * delta_longitude4
-      easting = @easting0 + iv * delta_longitude + v * delta_longitude * delta_longitude2 + vi * delta_longitude * delta_longitude4
-      [easting, northing, height]
+      m = @ell.b * @f0 * ((1.0 + n + 5.0 * n2 / 4.0 + 5.0 * n * n2 / 4.0) * delta_lat - (3.0 * n + 3.0 * n2 + 21.0 * n * n2 / 8.0) * Math.sin(delta_lat) * Math.cos(sigma_lat) + (15.0 * n2 / 8.0 + 15.0 * n * n2 / 8.0) * Math.sin(2.0 * delta_lat) * Math.cos(2.0 * sigma_lat) - (35.0 * n / 24.0) * n2 * Math.sin(3.0 * delta_lat) * Math.cos(3.0 * sigma_lat))
+      i = m + @north0
+      ii = nu * sin_lat * cos_lat / 2.0
+      iii = nu * sin_lat * cos_lat * cos_lat2 * (5.0 - tan_lat2 + 9.0 * eta2) /  24.0
+      iiia = nu * sin_lat * cos_lat * cos_lat4 * (61.0 - 58.0 * tan_lat2 + tan_lat4) / 720.0
+      iv = nu * cos_lat
+      v = nu * cos_lat * cos_lat2 * (nu / rho - tan_lat2) / 6.0
+      vi = nu * cos_lat * cos_lat4 * (5.0 - 18.0 * tan_lat2 + tan_lat4 + 14.0 * eta2 - 58.0 * tan_lat2 * eta2) / 120.0
+      north = i + ii * delta_lon2 + iii * delta_lon4 + iiia * delta_lon2 * delta_lon4
+      east = @east0 + iv * delta_lon + v * delta_lon * delta_lon2 + vi * delta_lon * delta_lon4
+      [east, north, height]
     end
 
     def enh_to_llh(enh)
       return nil if enh.nil?
-      easting, northing, height = enh
-      delta_easting = easting - @easting0
-      delta_easting2 = delta_easting * delta_easting
-      delta_easting4 = delta_easting2 * delta_easting2
-      latitude_ = (northing - @northing0) / (@ellipsoid.a * @f0) + @latitude0
-      n = (@ellipsoid.a - @ellipsoid.b) / (@ellipsoid.a + @ellipsoid.b)
+      east, north, height = enh
+      delta_east = east - @east0
+      delta_east2 = delta_east * delta_east
+      delta_east4 = delta_east2 * delta_east2
+      lat_ = (north - @north0) / (@ell.a * @f0) + @lat0
+      n = (@ell.a - @ell.b) / (@ell.a + @ell.b)
       n2 = n * n
       while true
-        delta_latitude_ = latitude_ - @latitude0
-        sigma_latitude_ = latitude_ + @latitude0
-        m = @ellipsoid.b * @f0 * ((1.0 + n + 5.0 * n2 / 4.0 + 5.0 * n * n2 / 4.0) * delta_latitude_ - (3.0 * n + 3.0 * n2 + 21.0 * n * n2 / 8.0) * Math.sin(delta_latitude_) * Math.cos(sigma_latitude_) + (15.0 * n2 / 8.0 + 15.0 * n * n2 / 8.0) * Math.sin(2.0 * delta_latitude_) * Math.cos(2.0 * sigma_latitude_) - (35.0 * n / 24.0) * n2 * Math.sin(3.0 * delta_latitude_) * Math.cos(3.0 * sigma_latitude_))
-        break if northing - @northing0 - m < 0.0001
-        latitude_ = (northing - @northing0 - m) / (@ellipsoid.a * @f0) + latitude_
+        delta_lat_ = lat_ - @lat0
+        sigma_lat_ = lat_ + @lat0
+        m = @ell.b * @f0 * ((1.0 + n + 5.0 * n2 / 4.0 + 5.0 * n * n2 / 4.0) * delta_lat_ - (3.0 * n + 3.0 * n2 + 21.0 * n * n2 / 8.0) * Math.sin(delta_lat_) * Math.cos(sigma_lat_) + (15.0 * n2 / 8.0 + 15.0 * n * n2 / 8.0) * Math.sin(2.0 * delta_lat_) * Math.cos(2.0 * sigma_lat_) - (35.0 * n / 24.0) * n2 * Math.sin(3.0 * delta_lat_) * Math.cos(3.0 * sigma_lat_))
+        break if north - @north0 - m < 0.0001
+        lat_ = (north - @north0 - m) / (@ell.a * @f0) + lat_
       end
-      sec_latitude_ = 1.0 / Math.cos(latitude_)
-      sin_latitude_ = Math.sin(latitude_)
-      sin_latitude_2 = sin_latitude_ * sin_latitude_
-      tan_latitude_ = Math.tan(latitude_)
-      tan_latitude_2 = tan_latitude_ * tan_latitude_
-      tan_latitude_4 = tan_latitude_2 * tan_latitude_2
-      nu = @ellipsoid.a * @f0 / Math.sqrt(1.0 - @ellipsoid.e2 * sin_latitude_2)
+      sec_lat_ = 1.0 / Math.cos(lat_)
+      sin_lat_ = Math.sin(lat_)
+      sin_lat_2 = sin_lat_ * sin_lat_
+      tan_lat_ = Math.tan(lat_)
+      tan_lat_2 = tan_lat_ * tan_lat_
+      tan_lat_4 = tan_lat_2 * tan_lat_2
+      nu = @ell.a * @f0 / Math.sqrt(1.0 - @ell.e2 * sin_lat_2)
       nu2 = nu * nu
       nu4 = nu2 * nu2
-      rho = @ellipsoid.a * @f0 * (1.0 - @ellipsoid.e2) * (1.0 - @ellipsoid.e2 * sin_latitude_2) ** -1.5
+      rho = @ell.a * @f0 * (1.0 - @ell.e2) * (1.0 - @ell.e2 * sin_lat_2) ** -1.5
       eta2 = nu / rho - 1.0
-      vii = tan_latitude_ / (2.0 * rho * nu)
-      viii = tan_latitude_ * (5.0 + 3.0 * tan_latitude_2 + eta2 - 9.0 * tan_latitude_2 * eta2) / (24.0 * rho * nu * nu2)
-      ix = tan_latitude_ * (61.0 + 90.0 * tan_latitude_2 + 45.0 * tan_latitude_4) / (720.0 * rho * nu * nu4)
-      x = sec_latitude_ / nu
-      xi = sec_latitude_ * (nu / rho + 2.0 * tan_latitude_2) / (6.0 * nu * nu2)
-      xii = sec_latitude_ * (5.0 + 28.0 * tan_latitude_2 + 24.0 * tan_latitude_4) / (120.0 * nu * nu4)
-      xiia = sec_latitude_ * (61.0 + 662.0 * tan_latitude_2 + 1320.0 * tan_latitude_4 + 720.0 * tan_latitude_2 * tan_latitude_4) / (5040.0 * nu * nu2 * nu4)
-      latitude = latitude_ - vii * delta_easting2 + viii * delta_easting4 - ix * delta_easting2 * delta_easting4
-      longitude = @longitude0 + x * delta_easting - xi * delta_easting * delta_easting2 + xii * delta_easting * delta_easting4 - xiia * delta_easting * delta_easting2 * delta_easting4
-      [latitude, longitude, height]
+      vii = tan_lat_ / (2.0 * rho * nu)
+      viii = tan_lat_ * (5.0 + 3.0 * tan_lat_2 + eta2 - 9.0 * tan_lat_2 * eta2) / (24.0 * rho * nu * nu2)
+      ix = tan_lat_ * (61.0 + 90.0 * tan_lat_2 + 45.0 * tan_lat_4) / (720.0 * rho * nu * nu4)
+      x = sec_lat_ / nu
+      xi = sec_lat_ * (nu / rho + 2.0 * tan_lat_2) / (6.0 * nu * nu2)
+      xii = sec_lat_ * (5.0 + 28.0 * tan_lat_2 + 24.0 * tan_lat_4) / (120.0 * nu * nu4)
+      xiia = sec_lat_ * (61.0 + 662.0 * tan_lat_2 + 1320.0 * tan_lat_4 + 720.0 * tan_lat_2 * tan_lat_4) / (5040.0 * nu * nu2 * nu4)
+      lat = lat_ - vii * delta_east2 + viii * delta_east4 - ix * delta_east2 * delta_east4
+      lon = @lon0 + x * delta_east - xi * delta_east * delta_east2 + xii * delta_east * delta_east4 - xiia * delta_east * delta_east2 * delta_east4
+      [lat, lon, height]
     end
 
   end
@@ -215,9 +215,9 @@ module Geoid
       raise "Invalid grid reference #{gr.inspect}" if match.nil?
       figures = match[3].size
       square_size = 10 ** (5 - figures / 2)
-      easting = (LETTER_EASTING[match[1]] - LETTER_EASTING["S"]) * 500_000.0 + (LETTER_EASTING[match[2]] - LETTER_EASTING["V"]) * 100_000.0 + square_size * match[3][0, figures / 2].to_i
-      northing = (LETTER_NORTHING[match[1]] - LETTER_NORTHING["S"]) * 500_000.0 + (LETTER_NORTHING[match[2]] - LETTER_NORTHING["V"]) * 100_000.0 + square_size * match[3][figures / 2, figures / 2].to_i
-      [easting, northing, 0.0]
+      east = (LETTER_EASTING[match[1]] - LETTER_EASTING["S"]) * 500_000.0 + (LETTER_EASTING[match[2]] - LETTER_EASTING["V"]) * 100_000.0 + square_size * match[3][0, figures / 2].to_i
+      north = (LETTER_NORTHING[match[1]] - LETTER_NORTHING["S"]) * 500_000.0 + (LETTER_NORTHING[match[2]] - LETTER_NORTHING["V"]) * 100_000.0 + square_size * match[3][figures / 2, figures / 2].to_i
+      [east, north, 0.0]
     end
 
     def enh_to_gr(enh, figures = 6)
@@ -234,7 +234,7 @@ module Geoid
 
     def enh_to_wgs84_llh(enh)
       llh = enh_to_llh(enh)
-      xyz = @ellipsoid.llh_to_xyz(llh)
+      xyz = @ell.llh_to_xyz(llh)
       wgs84_xyz = HelmertTransform::NationalGrid_to_WGS84.xyz_to_xyz(xyz)
       Ellipsoid::WGS84.xyz_to_llh(wgs84_xyz)
     end
@@ -247,7 +247,7 @@ module Geoid
     def wgs84_llh_to_enh(wgs84_llh)
       wgs84_xyz = Ellipsoid::WGS84.llh_to_xyz(wgs84_llh)
       xyz = HelmertTransform::WGS84_to_NationalGrid.xyz_to_xyz(wgs84_xyz)
-      llh = @ellipsoid.xyz_to_llh(xyz)
+      llh = @ell.xyz_to_llh(xyz)
       llh_to_enh(llh)
     end
 
