@@ -55,53 +55,65 @@ end
 class TC_Geoid < Test::Unit::TestCase
 
   def setup
-    @projection = Geoid::Projection::NationalGrid
-    @llh = [Math.deg_to_rad(52.0 + 39.0 / 60.0 + 27.2531 / 3600.0), Math.deg_to_rad(1.0 + 43.0 / 60.0 + 4.5177 / 3600.0), 24.7]
-    @ll_delta = Math.deg_to_rad(0.00005 / 3600.0)
-    @xyz = [3_874_938.849, 116_218.624, 5_047_168.208]
-    @enh = [651_409.903, 313_177.270, 0.0]
+    @projection = Geoid::NationalGrid
+    @coord = Coord.new(Math.deg_to_rad(52.0 + 39.0 / 60.0 + 27.2531 / 3600.0), Math.deg_to_rad(1.0 + 43.0 / 60.0 + 4.5177 / 3600.0), 24.7)
+    @delta = Math.deg_to_rad(0.00005 / 3600.0)
+    @cartesian = Cartesian.new(3_874_938.849, 116_218.624, 5_047_168.208)
+    @grid = Grid.new(651_409.903, 313_177.270, 0.0)
     @gr = "TG51401317"
   end
 
-  def test_llh_to_xyz
-    xyz = @projection.ell.llh_to_xyz(@llh)
-    assert_to_dp(@xyz[0], xyz[0], 3)
-    assert_to_dp(@xyz[1], xyz[1], 3)
-    assert_to_dp(@xyz[2], xyz[2], 3)
+  def test_coord_to_cartesian
+    cartesian = @projection.ell.coord_to_cartesian(@coord)
+    assert_to_dp(@cartesian.x, cartesian.x, 3)
+    assert_to_dp(@cartesian.y, cartesian.y, 3)
+    assert_to_dp(@cartesian.z, cartesian.z, 3)
   end
 
-  def test_xyz_to_llh
-    llh = @projection.ell.xyz_to_llh(@xyz)
-    assert_in_delta(@llh[0], llh[0], @ll_delta)
-    assert_in_delta(@llh[1], llh[1], @ll_delta)
-    assert_to_dp(@llh[2], llh[2], 3)
+  def test_cartesian_to_coord
+    coord = @projection.ell.cartesian_to_coord(@cartesian)
+    assert_in_delta(@coord.lat, coord.lat, @delta)
+    assert_in_delta(@coord.lon, coord.lon, @delta)
+    assert_to_dp(@coord.alt, coord.alt, 3)
   end
 
-  def test_llh_to_enh
-    enh = @projection.llh_to_enh(@llh)
-    assert_to_dp(@enh[0], enh[0], 3)
-    assert_to_dp(@enh[1], enh[1], 3)
+  def test_coord_to_grid
+    grid = @projection.coord_to_grid(@coord)
+    assert_to_dp(@grid.east, grid.east, 3)
+    assert_to_dp(@grid.north, grid.north, 3)
   end
 
-  def test_enh_to_llh
-    llh = @projection.enh_to_llh(@enh)
-    assert_in_delta(@llh[0], llh[0], @ll_delta)
-    assert_in_delta(@llh[1], llh[1], @ll_delta)
+  def test_grid_to_coord
+    coord = @projection.grid_to_coord(@grid)
+    assert_in_delta(@coord.lat, coord.lat, @delta)
+    assert_in_delta(@coord.lon, coord.lon, @delta)
   end
 
-  def test_gr_to_enh
-    enh = @projection.gr_to_enh(@gr)
-    assert_in_delta(@enh[0], enh[0], 10.0)
-    assert_in_delta(@enh[1], enh[1], 10.0)
+  def test_gr_to_grid
+    grid = @projection.gr_to_grid(@gr)
+    assert_in_delta(@grid.east, grid.east, 10.0)
+    assert_in_delta(@grid.north, grid.north, 10.0)
   end
 
-  def test_enh_to_gr
-    gr = @projection.enh_to_gr(@enh, @gr.size - 2)
+  def test_gr_to_grid_2
+    assert_equal(Grid.new(651400.0, 313170.0, 0.0), @projection.gr_to_grid("TG51401317"))
+  end
+
+  def test_gr_to_grid_3
+    assert_equal(Grid.new(300000.0, 200000.0, 0.0), @projection.gr_to_grid("SO000000"))
+  end
+
+  def test_gr_to_grid_4
+    assert_equal(Grid.new(500000.0, 900000.0, 0.0), @projection.gr_to_grid("OA000000"))
+  end
+
+  def test_gr_to_grid_5
+    assert_equal(Grid.new(100000.0, 1000000.0, 0.0), @projection.gr_to_grid("HW000000"))
+  end
+
+  def test_grid_to_gr
+    gr = @projection.grid_to_gr(@grid, @gr.size - 2)
     assert_equal(@gr, gr)
-  end
-
-  def teardown
-    @ell = nil
   end
 
 end
