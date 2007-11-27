@@ -9,19 +9,6 @@ require "opengl"
 require "optparse"
 require "streetmap"
 
-class Range
-
-  def divide_into(n)
-    0.upto(n - 1) do |i|
-      from = i * (last - first) / n + first
-      to = (i + 1) * (last - first) / n + first
-      yield(from, to)
-    end
-    self
-  end
-
-end
-
 module Magick
 
   class Image
@@ -29,12 +16,23 @@ module Magick
     def to_gl_texture(tex_parameters = {})
       texture = Gl.glGenTextures(1)[0]
       Gl.glBindTexture(Gl::GL_TEXTURE_2D, texture)
-      tex_parameters.each do |key, value|
-        Gl.glTexParameteri(GL::GL_TEXTURE_2D, key, value)
+      tex_parameters.each { |pname, params| Gl.glTexParameteri(GL::GL_TEXTURE_2D, pname, params) }
+      data = export_pixels_to_str(0, 0, columns, rows, "RGB", Magick::CharPixel)
+      Gl.glTexImage2D(Gl::GL_TEXTURE_2D, 0, Gl::GL_RGB, columns, rows, 0, Gl::GL_RGB, Gl::GL_UNSIGNED_BYTE, data)
+      if block_given?
+        #old_texture = glGetIntegerv(GL::GL_TEXTURE_2D)
+        glPushAttrib(GL::GL_TEXTURE_BIT)
+        glBindTexture(Gl::GL_TEXTURE_2D, texture)
+        begin
+          yield(texture)
+        ensure
+          #glBindTexture(Gl::GL_TEXTURE_2D, old_texture)
+          glPopAttrib
+          glDeleteTextures([texture])
+        end
+      else
+        texture
       end
-      data = export_pixels_to_str(0, 0, columns, rows, "RGBA", Magick::FloatPixel)
-      Gl.glTexImage2D(Gl::GL_TEXTURE_2D, 0, Gl::GL_RGBA, columns, rows, 0, Gl::GL_RGBA, Gl::GL_FLOAT, data)
-      texture
     end
 
     class << self
@@ -52,6 +50,16 @@ module Magick
 
 end
 
+module Gl
+
+  def glBegin2(mode)
+    glBegin(mode)
+    yield ensure glEnd
+  end
+
+end
+
+
 module Glut
 
   class Application
@@ -60,7 +68,6 @@ module Glut
       glutInit
       glutInitDisplayMode(GLUT_RGB)
       glutInitWindowSize(width, height)
-      glutInitWindowPosition(2500, 0)
       @window = glutCreateWindow($0)
       glutDisplayFunc(self.method(:display).to_proc) if self.respond_to?(:display)
       glutReshapeFunc(self.method(:reshape).to_proc) if self.respond_to?(:reshape)
@@ -85,69 +92,117 @@ module Glut
 
 end
 
+class Seconds
+
+  class << self
+
+    def format(seconds)
+      self.const_get(:FORMAT) % to_dmsh(seconds)
+    end
+
+    def new_from_dmsh(deg = 0, min = 0, sec = 0, hemi = 1)
+      hemi * (3600 * deg + 60 * min + sec)
+    end
+
+    def new_from_s(s)
+      md = self.const_get(:REGEXP).match(s) or raise
+      hemi = md[4] && md[4] == self.const_get(:HEMISPHERES)[-1] ? -1 : 1
+      new_from_dmsh(md[1].to_i, md[2] ? md[2].to_i : 0, md[3] ? md[3].to_i : 0, hemi)
+    end
+
+    def to_deg(seconds)
+      seconds.to_f / 3600.0
+    end
+
+    def to_dmsh(seconds)
+      hemi = self.const_get(:HEMISPHERES)[seconds <=> 0]
+      deg, rem = seconds.abs.divmod(3600)
+      min, sec = rem.divmod(60)
+      [deg, min, sec, hemi]
+    end
+
+    def to_rad(seconds)
+      seconds.to_f * Math::PI / (180.0 * 3600.0)
+    end
+
+  end
+
+end
+
+class Latitude < Seconds
+
+  HEMISPHERES = %w(N N S)
+  FORMAT = "%02d%02d%02d%s"
+  REGEXP = /\A(\d{1,2})(\d{2})?(\d{2})?([NS])?\z/
+
+end
+
+class Longitude < Seconds
+
+  HEMISPHERES = %w(E E W)
+  FORMAT = "%03d%02d%02d%s"
+  REGEXP = /\A(\d{1,3})(\d{2})?(\d{2})?([EW])?\z/
+
+end
+
 class StreetmapToKML < Glut::Application
 
-  def initialize(width, height)
-    @zoom = 3
-    @tile_scale = Streetmap::TILE_SCALE[@zoom]
-    @tile_size = Streetmap::TILE_SIZE[@zoom]
-    @width, @height = width, height
+  def initialize
     @count = 0
-    super(width, height)
+    @width = @height = 512
+    super(@width, @height)
     glClearColor(0.0, 0.0, 0.0, 0.0)
     glEnable(GL_TEXTURE_2D)
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity
-    glViewport(0, 0, width, height)
+    glViewport(0, 0, @width, @height)
   end
 
   def display
     @count += 1
     return if @count != 2
-    @folder = KML::Folder.new
-    tile_delta = Radians.new_from_s("0 2")
-    delta = tile_delta / 1.0
-    Radians.new_from_s("3 12 W").step(Radians.new_from_s("3 0 W"), tile_delta) do |lon0|
-      lon1 = lon0 + tile_delta
-      Radians.new_from_s("54 28 N").step(Radians.new_from_s("54 40 N"), tile_delta) do |lat0|
-        lat1 = lat0 + tile_delta
-        grid0 = Geoid::NationalGrid.wgs84_coord_to_grid(Coord.new(lat0, lon0, 0.0))
-        grid1 = Geoid::NationalGrid.wgs84_coord_to_grid(Coord.new(lat1, lon1, 0.0))
-        map = Streetmap::Map.new([grid0, grid1], @zoom)
-        texture = map.image.to_gl_texture(GL_TEXTURE_MIN_FILTER => GL_LINEAR, GL_TEXTURE_MAG_FILTER => GL_LINEAR)
-        glClear(GL_COLOR_BUFFER_BIT)
-        glBindTexture(GL_TEXTURE_2D, texture)
+    folder = KML::Folder.new
+    delta = Seconds.new_from_dmsh(0, 1)
+    Longitude.new_from_s("00312W").step(Longitude.new_from_s("00310W"), delta) do |east|
+      west = east + delta
+      Latitude.new_from_s("5428N").step(Latitude.new_from_s("5429N"), delta) do |south|
+        north = south + delta
+        coord0 = Coord.new(Seconds.to_rad(south), Seconds.to_rad(east), 0.0)
+        coord1 = Coord.new(Seconds.to_rad(north), Seconds.to_rad(west), 0.0)
+        map = Streetmap::Map.new([coord0, coord1].collect(&Geoid::NationalGrid.method(:wgs84_coord_to_grid)), 3)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity
-        glOrtho(lon0, lon1, lat0, lat1, -1, 1)
-        lat0.step(lat1, tile_delta) do |lata|
-          latb = lata + tile_delta
-          glBegin(GL_QUAD_STRIP)
-          point(map, lata, lon0)
-          point(map, latb, lon0)
-          lon0.step(lon1, tile_delta) do |lona|
-            lonb = lona + tile_delta
-            point(map, lata, lonb)
-            point(map, latb, lonb)
+        glOrtho(coord0.lon, coord1.lon, coord0.lat, coord1.lat, -1, 1)
+        map.image.to_gl_texture(GL_TEXTURE_MIN_FILTER => GL_LINEAR, GL_TEXTURE_MAG_FILTER => GL_LINEAR) do
+          south.step(north) do |ns|
+            lat0, lat1 = Seconds.to_rad(ns), Seconds.to_rad(ns + delta)
+            glBegin2(GL_QUAD_STRIP) do
+              lon0 = Seconds.to_rad(east)
+              vertex(map, lat0, lon0)
+              vertex(map, lat1, lon0)
+              east.step(west) do |ew|
+                lon1 = Seconds.to_rad(ew + delta)
+                vertex(map, lat0, lon1)
+                vertex(map, lat1, lon1)
+              end
+            end
           end
-          glEnd
         end
-        glDeleteTextures([texture])
-        tile_filename = "streetmap-#{lat0}-#{lon0}.png"
+        tile_filename = [Latitude.format(south), Longitude.format(east)].join("-") + ".png"
         Magick::Image.new_from_gl(0, 0, @width, @height).flip!.flop!.write(tile_filename)
         icon = KML::Icon.new(:href => tile_filename)
-        lat_lon_box = KML::LatLonBox.new(:north => Math.rad_to_deg(lat1), :south => Math.rad_to_deg(lat0), :east => Math.rad_to_deg(lon0), :west => Math.rad_to_deg(lon1))
+        lat_lon_box = KML::LatLonBox.new(:north => Seconds.to_deg(north), :south => Seconds.to_deg(south), :east => Seconds.to_deg(east), :west => Seconds.to_deg(west))
         ground_overlay = KML::GroundOverlay.new(icon, lat_lon_box)
-        @folder.add(ground_overlay)
+        folder.add(ground_overlay)
       end
     end
     File.open("streetmap.kml", "w") do |io|
-      KML.new(@folder).pretty_write(io)
+      KML.new(folder).pretty_write(io)
     end
     throw :exit
   end
 
-  def point(map, lat, lon)
+  def vertex(map, lat, lon)
     grid = Geoid::NationalGrid.wgs84_coord_to_grid(Coord.new(lat, lon, 0.0))
     s = (grid.east - map.grid0.east) / (map.grid1.east - map.grid0.east)
     t = 1.0 - (grid.north - map.grid0.north) / (map.grid1.north - map.grid0.north)
@@ -159,7 +214,7 @@ end
 
 def main(argv)
   catch :exit do
-    StreetmapToKML.new(512, 512).main
+    StreetmapToKML.new.main
   end
   nil
 end
