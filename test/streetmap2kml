@@ -20,13 +20,11 @@ module Magick
       data = export_pixels_to_str(0, 0, columns, rows, "RGB", Magick::CharPixel)
       Gl.glTexImage2D(Gl::GL_TEXTURE_2D, 0, Gl::GL_RGB, columns, rows, 0, Gl::GL_RGB, Gl::GL_UNSIGNED_BYTE, data)
       if block_given?
-        #old_texture = glGetIntegerv(GL::GL_TEXTURE_2D)
         glPushAttrib(GL::GL_TEXTURE_BIT)
         glBindTexture(Gl::GL_TEXTURE_2D, texture)
         begin
           yield(texture)
         ensure
-          #glBindTexture(Gl::GL_TEXTURE_2D, old_texture)
           glPopAttrib
           glDeleteTextures([texture])
         end
@@ -58,7 +56,6 @@ module Gl
   end
 
 end
-
 
 module Glut
 
@@ -147,7 +144,8 @@ end
 
 class StreetmapToKML < Glut::Application
 
-  def initialize
+  def initialize(bounds)
+    @bounds = bounds
     @count = 0
     @width = @height = 512
     super(@width, @height)
@@ -163,9 +161,11 @@ class StreetmapToKML < Glut::Application
     return if @count != 2
     folder = KML::Folder.new
     delta = Seconds.new_from_dmsh(0, 1)
-    Longitude.new_from_s("00312W").step(Longitude.new_from_s("00310W"), delta) do |east|
+    #Longitude.new_from_s("00312W").step(Longitude.new_from_s("00310W"), delta) do |east|
+    @bounds[0][0].step(bounds[1][0], delta) do |east|
       west = east + delta
-      Latitude.new_from_s("5428N").step(Latitude.new_from_s("5429N"), delta) do |south|
+      #Latitude.new_from_s("5428N").step(Latitude.new_from_s("5429N"), delta) do |south|
+      @bounds[0][1].step(@bounds[1][1], delta) do |south|
         north = south + delta
         coord0 = Coord.new(Seconds.to_rad(south), Seconds.to_rad(east), 0.0)
         coord1 = Coord.new(Seconds.to_rad(north), Seconds.to_rad(west), 0.0)
@@ -213,8 +213,11 @@ class StreetmapToKML < Glut::Application
 end
 
 def main(argv)
+  bounds = [%w(00312W 5248N), %w(00310W 5429N)].collect do |lon, lat|
+    [Longitude.new_from_s(lon), Latitude.new_from_s(lat)]
+  end
   catch :exit do
-    StreetmapToKML.new.main
+    StreetmapToKML.new(bounds).main
   end
   nil
 end
