@@ -5,6 +5,7 @@ $:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
 require "rubygems"
 require "RMagick"
 require "kml"
+require "kmz"
 require "opengl"
 require "optparse"
 require "streetmap"
@@ -162,6 +163,7 @@ class StreetmapToKML < Glut::Application
     return if @count != 2
     style = KML::Style.new(KML::ListStyle.new(:listItemType => :checkHideChildren))
     folder = KML::Folder.new(style)
+    kmz = KMZ.new(folder)
     delta = Seconds.new_from_dmsh(0, 1)
     @bounds[0][0].step(@bounds[1][0], delta) do |east|
       west = east + delta
@@ -188,17 +190,17 @@ class StreetmapToKML < Glut::Application
             end
           end
         end
+        image = Magick::Image.new_from_gl(0, 0, @width, @height).flip!.flop!
+        image.format = "png"
         tile_filename = [Latitude.format(south), Longitude.format(east)].join("-") + ".png"
-        Magick::Image.new_from_gl(0, 0, @width, @height).flip!.flop!.write(tile_filename)
+        kmz.merge_files(tile_filename => image.to_blob)
         icon = KML::Icon.new(:href => tile_filename)
         lat_lon_box = KML::LatLonBox.new(:north => Seconds.to_deg(north), :south => Seconds.to_deg(south), :east => Seconds.to_deg(east), :west => Seconds.to_deg(west))
         ground_overlay = KML::GroundOverlay.new(icon, lat_lon_box)
         folder.add(ground_overlay)
       end
     end
-    File.open(@output, "w") do |io|
-      KML.new(folder).pretty_write(io)
-    end
+    kmz.write(@output)
     throw :exit
   end
 
@@ -214,7 +216,7 @@ end
 
 def main(argv)
   bounds = []
-  output = "streetmap.kml"
+  output = "streetmap.kmz"
   size = 512
   OptionParser.new do |op|
     op.on("--help", "help") do |arg|
