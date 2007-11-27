@@ -144,10 +144,11 @@ end
 
 class StreetmapToKML < Glut::Application
 
-  def initialize(bounds)
+  def initialize(output, bounds, size = 512)
+    @output = output
     @bounds = bounds
     @count = 0
-    @width = @height = 512
+    @width = @height = size
     super(@width, @height)
     glClearColor(0.0, 0.0, 0.0, 0.0)
     glEnable(GL_TEXTURE_2D)
@@ -159,12 +160,11 @@ class StreetmapToKML < Glut::Application
   def display
     @count += 1
     return if @count != 2
-    folder = KML::Folder.new
+    style = KML::Style.new(KML::ListStyle.new(:listItemType => :checkHideChildren))
+    folder = KML::Folder.new(style)
     delta = Seconds.new_from_dmsh(0, 1)
-    #Longitude.new_from_s("00312W").step(Longitude.new_from_s("00310W"), delta) do |east|
-    @bounds[0][0].step(bounds[1][0], delta) do |east|
+    @bounds[0][0].step(@bounds[1][0], delta) do |east|
       west = east + delta
-      #Latitude.new_from_s("5428N").step(Latitude.new_from_s("5429N"), delta) do |south|
       @bounds[0][1].step(@bounds[1][1], delta) do |south|
         north = south + delta
         coord0 = Coord.new(Seconds.to_rad(south), Seconds.to_rad(east), 0.0)
@@ -196,7 +196,7 @@ class StreetmapToKML < Glut::Application
         folder.add(ground_overlay)
       end
     end
-    File.open("streetmap.kml", "w") do |io|
+    File.open(@output, "w") do |io|
       KML.new(folder).pretty_write(io)
     end
     throw :exit
@@ -213,11 +213,30 @@ class StreetmapToKML < Glut::Application
 end
 
 def main(argv)
-  bounds = [%w(00312W 5248N), %w(00310W 5429N)].collect do |lon, lat|
-    [Longitude.new_from_s(lon), Latitude.new_from_s(lat)]
+  bounds = []
+  output = "streetmap.kml"
+  size = 512
+  OptionParser.new do |op|
+    op.on("--help", "help") do |arg|
+      puts(op)
+      return
+    end
+    op.on("--from=LON,LAT", Array, "from") do |arg|
+      bounds[0] = [Longitude.new_from_s(arg[0]), Latitude.new_from_s(arg[1])]
+    end
+    op.on("--to=LON,LAT", Array, "to") do |arg|
+      bounds[1] = [Longitude.new_from_s(arg[0]), Latitude.new_from_s(arg[1])]
+    end
+    op.on("--output=FILENAME", String, "output") do |arg|
+      output = arg
+    end
+    op.on("--size=SIZE", Integer, "size") do |arg|
+      size = arg
+    end
+    op.parse!(argv)
   end
   catch :exit do
-    StreetmapToKML.new(bounds).main
+    StreetmapToKML.new(output, bounds, size).main
   end
   nil
 end
