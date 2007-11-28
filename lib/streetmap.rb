@@ -35,7 +35,7 @@ module Streetmap
       j1 = ((grid1.north + @tile_scale - 1) / @tile_scale).to_i
       @grid0 = Grid.new(i0 * @tile_scale, j0 * @tile_scale, 0.0)
       @grid1 = Grid.new(i1 * @tile_scale, j1 * @tile_scale, 0.0)
-      @image = Magick::Image.new((i1 - i0) * @tile_size, (j1 - j0) * @tile_size)
+      @image = Magick::Image.new((i1 - i0) * @tile_size, (j1 - j0) * @tile_size) { self.depth = 8 }
       (i0...i1).each do |i|
         (j0...j1).each do |j|
           grid = Grid.new(i * @tile_scale, j * @tile_scale, 0.0)
