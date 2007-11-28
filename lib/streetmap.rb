@@ -41,7 +41,8 @@ module Streetmap
           grid = Grid.new(i * @tile_scale, j * @tile_scale, 0.0)
           Streetmap.download_tile(grid, {:zoom => zoom}, tilesdir)
           tile_filename = Streetmap.grid_to_tile_filename(grid, zoom)
-          tile = Magick::ImageList.new(File.join(tilesdir, tile_filename))
+          tile = Magick::ImageList.new(File.join(tilesdir, tile_filename))[0]
+          next if tile.nil?
           pixels = tile.get_pixels(0, 0, @tile_size, @tile_size)
           @image.store_pixels((i - i0) * @tile_size, (j1 - j - 1) * @tile_size, @tile_size, @tile_size, pixels)
         end
