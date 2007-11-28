@@ -42,9 +42,7 @@ module Streetmap
           Streetmap.download_tile(grid, {:zoom => zoom}, tilesdir)
           tile_filename = Streetmap.grid_to_tile_filename(grid, zoom)
           tile = Magick::ImageList.new(File.join(tilesdir, tile_filename))[0]
-          next if tile.nil?
-          pixels = tile.get_pixels(0, 0, @tile_size, @tile_size)
-          @image.store_pixels((i - i0) * @tile_size, (j1 - j - 1) * @tile_size, @tile_size, @tile_size, pixels)
+          @image.composite!(tile, (i - i0) * @tile_size, (j1 - j - 1) * @tile_size, Magick::ReplaceCompositeOp) if tile
         end
       end
     end
@@ -121,7 +119,7 @@ module Streetmap
 
     def main(argv)
       zoom = 3
-      bounds = %w(SO0000 SO5050)
+      bounds = %w(SO0000 SO1010)
       output = nil
       OptionParser.new do |op|
         op.on("--help", "help") do |arg|
