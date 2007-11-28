@@ -53,7 +53,6 @@ module Streetmap
       (grid0.east..grid1.east).include?(grid.east) and (grid0.north..grid1.north).include?(grid.north)
     end
 
-
   end
 
   class << self
