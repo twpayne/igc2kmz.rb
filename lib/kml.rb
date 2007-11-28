@@ -27,14 +27,18 @@ class KML
     args.each(&@kml.method(:add))
   end
 
-  def write(io)
-    io.write("<?xml version=\"1.0\"?>")
+  def fast_write(io)
+    io.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
     @kml.write(io)
   end
 
   def pretty_write(io, indent = "\t")
-    io.write("<?xml version=\"1.0\"?>\n")
+    io.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
     @kml.pretty_write(io, indent, "")
+  end
+
+  def write(io, indent = nil)
+    indent ? pretty_write(io, indent) : fast_write(io)
   end
 
   def to_s
