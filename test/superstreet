@@ -1,0 +1,83 @@
+#!/usr/bin/ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), "..", "lib"))
+
+require "rubygems"
+require "fileutils"
+require "RMagick"
+require "kml"
+
+class Tile
+
+  attr_reader :region
+  attr_reader :network_link
+  attr_reader :image
+  attr_reader :href
+
+  def initialize(name, depth, maxdepth, north, south, east, west)
+    @href = name + ".kml"
+    lat_lon_alt_box = KML::LatLonAltBox.new(:north => north, :south => south, :east => east, :west => west)
+    lod = KML::Lod.new(:minLodPixels => depth.zero? ? 0 : 128, :maxLodPixels => -1)
+    @region = KML::Region.new(lat_lon_alt_box, lod)
+    document = KML::Document.new(@region)
+    if depth < maxdepth
+      @image = Magick::Image.new(512, 512) { self.depth = 8 }
+      tile = Tile.new(name + "0", depth + 1, maxdepth, north, (north + south) / 2, (east + west) / 2, west)
+      document.add(tile.network_link)
+      @image.composite!(tile.image, 0, 0, Magick::ReplaceCompositeOp)
+      tile = Tile.new(name + "1", depth + 1, maxdepth, (north + south) / 2, south, (east + west) / 2, west)
+      document.add(tile.network_link)
+      @image.composite!(tile.image, 0, 256, Magick::ReplaceCompositeOp)
+      tile = Tile.new(name + "2", depth + 1, maxdepth, north, (north + south) / 2, east, (east + west) / 2)
+      document.add(tile.network_link)
+      @image.composite!(tile.image, 256, 0, Magick::ReplaceCompositeOp)
+      tile = Tile.new(name + "3", depth + 1, maxdepth, (north + south) / 2, south, east, (east + west) / 2)
+      document.add(tile.network_link)
+      @image.composite!(tile.image, 256, 256, Magick::ReplaceCompositeOp)
+      @image.scale!(256, 256)
+    else
+      @image = Magick::Image.new(256, 256) { self.depth = 8 }
+      draw = Magick::Draw.new
+      draw.fill("#%02x%02x%02x" % [rand(256), rand(256), rand(256)])
+      draw.rectangle(0, 0, 255, 255)
+      draw.stroke("blue")
+      draw.fill_opacity(0)
+      draw.line(128, 128, 128, 255)
+      draw.line(128, 128, 255, 128)
+      draw.rectangle(0, 0, 255, 255)
+      draw.draw(@image)
+    end
+    draw = Magick::Draw.new
+    draw.stroke("black")
+    draw.fill("black")
+    draw.text(128, 128, name)
+    draw.draw(@image)
+    @image.format = "png"
+    image_filename = name + "." + @image.format.downcase
+    @image.write(image_filename)
+    icon = KML::Icon.new(:href => image_filename)
+    lat_lon_box = KML::LatLonBox.new(:north => north, :south => south, :east => east, :west => west)
+    ground_overlay = KML::GroundOverlay.new(icon, lat_lon_box, :drawOrder => depth)
+    document.add(ground_overlay)
+    File.open(@href, "w") do |io|
+      KML.new(document).write(io)
+    end
+    link = KML::Link.new(:href => @href, :viewRefreshMode => :onRegion)
+    @network_link = KML::NetworkLink.new(@region, link)
+  end
+
+end
+
+def main(argv)
+  tile = Tile.new("0", 0, 3, 37.44140625, 37.265625, -121.9921875, -122.16796875)
+  list_style = KML::ListStyle.new(:listItemType => :checkHideChildren)
+  style = KML::Style.new(list_style)
+  link = KML::Link.new(:href => tile.href, :viewRefreshMode => :onRegion)
+  network_link = KML::NetworkLink.new(style, tile.region, link, :open => 1)
+  document = KML::Document.new(network_link)
+  File.open("superstreet.kml", "w") do |io|
+    KML.new(document).write(io, "  ")
+  end
+end
+
+main(ARGV) if $0 == __FILE__
