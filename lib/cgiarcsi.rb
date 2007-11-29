@@ -15,7 +15,7 @@ module CGIARCSI
       :uk => "http://armadillo.geog.kcl.ac.uk/portal/srtm3/srtm_data_arcascii/",
       :us => "http://srtm.csi.cgiar.org/SRT-ZIP/srtm_v3/SRTM_Data_ArcAscii/",
     }
-    MIRROR = MIRRORS[:us]
+    MIRROR = MIRRORS[:uk]
 
     CACHE_DIRECTORY = File.join("tmp", "cache", "srtm")
     ZIP_CACHE_DIRECTORY = File.join(CACHE_DIRECTORY, "zip")
