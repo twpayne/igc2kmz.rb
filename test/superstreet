@@ -174,7 +174,7 @@ class Tile
     ground_overlay = KML::GroundOverlay.new(icon, lat_lon_box, :drawOrder => draw_order)
     document.add(ground_overlay)
     File.open(@href, "w") do |io|
-      KML.new(document).write(io, "  ")
+      KML.new(document).write(io)
     end
     link = KML::Link.new(:href => @href, :viewRefreshMode => :onRegion)
     @network_link = KML::NetworkLink.new(@region, link)
@@ -234,7 +234,7 @@ class SuperStreet < Glut::Application
     network_link = KML::NetworkLink.new(style, tile.region, link, :open => 1)
     document = KML::Document.new(network_link)
     File.open(@output, "w") do |io|
-      KML.new(document).write(io, "  ")
+      KML.new(document).write(io)
     end
     throw :exit
   end
