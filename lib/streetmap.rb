@@ -39,8 +39,8 @@ module Streetmap
       (i0...i1).each do |i|
         (j0...j1).each do |j|
           grid = Grid.new(i * @tile_scale, j * @tile_scale, 0.0)
-          Streetmap.download_tile(grid, {:zoom => zoom}, tilesdir)
-          tile_filename = Streetmap.grid_to_tile_filename(grid, zoom)
+          tile_filename = Streetmap.download_tile(grid, {:zoom => zoom}, tilesdir)
+          next if tile_filename.nil?
           tile = Magick::ImageList.new(File.join(tilesdir, tile_filename))[0]
           @image.composite!(tile, (i - i0) * @tile_size, (j1 - j - 1) * @tile_size, Magick::ReplaceCompositeOp) if tile
         end
@@ -70,27 +70,19 @@ module Streetmap
     end 
 
     def grid_to_uri(grid, args = {}) 
-      uri_args = {}
-      uri_args[:scheme] = "http"
-      uri_args[:host] = "www.streetmap.co.uk"
-      uri_args[:path] = "/streetmap.dll"
-      query = []
-      query.push([:X, grid.east.to_i])
-      query.push([:Y, grid.north.to_i])
-      query.push([:zoom, args[:zoom].to_i]) if args[:zoom]
-      [:title, :back, :url].each do |arg|
-        query.push([arg, args[arg].url_encode]) if args[arg]
-      end
-      uri_args[:query] = "grid2map?" + query.collect { |pair| pair.join("=") }.join("&")
-      URI::HTTP.build(uri_args)
+      query = [[:x, grid.east.to_i], [:y, grid.north.to_i]]
+      query << [:z, args[:zoom].to_i] if args[:zoom]
+      URI::HTTP.build(:scheme => "http", :host => "www.streetmap.co.uk", :path => "/newmap.srf", :query => query.collect { |pair| pair.join("=") }.join("&"))
     end
 
     def download_tile(grid, args = {}, tilesdir = "", fetch_all = true)
       tile_filename = grid_to_tile_filename(grid, args[:zoom] || 3)
       FileUtils.mkdir_p(tilesdir)
-      return if FileTest.exist?(File.join(tilesdir, tile_filename))
+      return tile_filename if FileTest.exist?(File.join(tilesdir, tile_filename))
       page_uri = grid_to_uri(grid, args)
-      Hpricot(open(page_uri)).search("//img[@src]") do |img|
+      @http ||= Net::HTTP.new(page_uri.host, page_uri.port).start
+      page = @http.request_get(page_uri.request_uri)
+      Hpricot(page.body).search("//img[@src]") do |img|
         src_uri = img["src"]
         next unless /\A\/image\.dll/.match(src_uri)
         src_uri = page_uri + URI.parse(src_uri)
@@ -109,18 +101,21 @@ module Streetmap
           pair[0].to_s.url_encode + (pair[1] ? "=" + pair[1].url_encode : "")
         end.join("&")
         image_filename = File.join(tilesdir, query.assoc(:image)[1])
+        src = @http.request_get(src_uri.request_uri)
         Tempfile.open("streetmap") do |io|
-          io.write(src_uri.open.read)
+          io.write(src.body)
           io.close
           FileUtils.mv(io.path, image_filename)
         end
       end
+      tile_filename
     end
 
     def main(argv)
       zoom = 3
       bounds = %w(SO0000 SO1010)
       output = nil
+      tilesdir = File.join("tmp", "cache", "streetmap", "tiles")
       OptionParser.new do |op|
         op.on("--help", "help") do |arg|
           puts(op)
@@ -132,13 +127,16 @@ module Streetmap
         op.on("--output=FILENAME", String, "output filename") do |arg|
           output = arg
         end
+        op.on("--tilesdir=FILENAME", String, "tiles directory") do |arg|
+          tilesdir = arg
+        end
         op.on("--zoom=ZOOM", Integer, "zoom") do |arg|
           zoom = arg
         end
         op.parse!(argv)
       end
       output = [bounds[0], bounds[1], zoom].join("-") + ".png" unless output
-      Streetmap::Map.new(bounds, zoom).image.write(output)
+      Streetmap::Map.new(bounds, zoom, tilesdir).image.write(output)
       exit(0)
     end
 
