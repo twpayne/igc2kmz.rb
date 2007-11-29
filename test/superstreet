@@ -104,16 +104,14 @@ class Tile
   attr_reader :image
   attr_reader :href
 
-  def initialize(name, depth, north, south, east, west, zoom, map = nil, texture = nil)
+  def initialize(name, draw_order, north, south, east, west, zoom, map = nil, texture = nil)
     @href = name + ".kml"
     lat_lon_alt_box = KML::LatLonAltBox.new(:north => north, :south => south, :east => east, :west => west)
-    lod = KML::Lod.new(:minLodPixels => depth.zero? ? 0 : 128, :maxLodPixels => 256)
-    #lod = KML::Lod.new(:minLodPixels => depth.zero? ? 0 : 128, :maxLodPixels => -1)
-    #lod = KML::Lod.new(:minLodPixels => 0, :maxLodPixels => -1)
+    lod = KML::Lod.new(:minLodPixels => draw_order.zero? ? 0 : 128)
     @region = KML::Region.new(lat_lon_alt_box, lod)
     document = KML::Document.new(@region)
-    coord0 = Coord.new(Degrees.to_rad(south), Degrees.to_rad(east), 0.0)
-    coord1 = Coord.new(Degrees.to_rad(north), Degrees.to_rad(west), 0.0)
+    coord0 = Coord.new(Degrees.to_rad(south), Degrees.to_rad(west), 0.0)
+    coord1 = Coord.new(Degrees.to_rad(north), Degrees.to_rad(east), 0.0)
     grid0 = Geoid::NationalGrid.wgs84_coord_to_grid(coord0)
     grid1 = Geoid::NationalGrid.wgs84_coord_to_grid(coord1)
     tile_scale = Streetmap::TILE_SCALE[zoom]
@@ -130,34 +128,34 @@ class Tile
         @image = render(map, coord0, coord1)
       elsif columns < 256
         @image = Magick::Image.new(256, 512) { self.depth = 8 }
-        tile = Tile.new(name + "0", depth + 1, north, (north + south) / 2, east, west, zoom, map, texture)
+        tile = Tile.new(name + "0", draw_order + 1, north, (north + south) / 2, east, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "1", depth + 1, (north + south) / 2, south, east, west, zoom, map, texture)
+        tile = Tile.new(name + "1", draw_order + 1, (north + south) / 2, south, east, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 256, Magick::ReplaceCompositeOp)
         @image.scale!(256, 256)
       elsif rows < 256
         @image = Magick::Image.new(512, 256) { self.depth = 8 }
-        tile = Tile.new(name + "0", depth + 1, north, south, (east + west) / 2, west, zoom, map, texture)
+        tile = Tile.new(name + "0", draw_order + 1, north, south, (east + west) / 2, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "1", depth + 1, north, south, east, (east + west) / 2, zoom, map, texture)
+        tile = Tile.new(name + "1", draw_order + 1, north, south, east, (east + west) / 2, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 256, 0, Magick::ReplaceCompositeOp)
         @image.scale!(256, 256)
       else
         @image = Magick::Image.new(512, 512) { self.depth = 8 }
-        tile = Tile.new(name + "0", depth + 1, north, (north + south) / 2, (east + west) / 2, west, zoom, map, texture)
+        tile = Tile.new(name + "0", draw_order + 1, north, (north + south) / 2, (east + west) / 2, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "1", depth + 1, (north + south) / 2, south, (east + west) / 2, west, zoom, map, texture)
+        tile = Tile.new(name + "1", draw_order + 1, (north + south) / 2, south, (east + west) / 2, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 256, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "2", depth + 1, north, (north + south) / 2, east, (east + west) / 2, zoom, map, texture)
+        tile = Tile.new(name + "2", draw_order + 1, north, (north + south) / 2, east, (east + west) / 2, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 256, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "3", depth + 1, (north + south) / 2, south, east, (east + west) / 2, zoom, map, texture)
+        tile = Tile.new(name + "3", draw_order + 1, (north + south) / 2, south, east, (east + west) / 2, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 256, 256, Magick::ReplaceCompositeOp)
         @image.scale!(256, 256)
@@ -168,18 +166,15 @@ class Tile
         glDeleteTextures([texture])
       end
     end
-    draw = Magick::Draw.new
-    draw.text(128, 128, name)
-    draw.draw(@image)
     @image.format = "png"
     image_filename = name + "." + @image.format.downcase
     @image.write(image_filename)
     icon = KML::Icon.new(:href => image_filename)
     lat_lon_box = KML::LatLonBox.new(:north => north, :south => south, :east => east, :west => west)
-    ground_overlay = KML::GroundOverlay.new(icon, lat_lon_box, :drawOrder => depth)
+    ground_overlay = KML::GroundOverlay.new(icon, lat_lon_box, :drawOrder => draw_order)
     document.add(ground_overlay)
     File.open(@href, "w") do |io|
-      KML.new(document).write(io)
+      KML.new(document).write(io, "  ")
     end
     link = KML::Link.new(:href => @href, :viewRefreshMode => :onRegion)
     @network_link = KML::NetworkLink.new(@region, link)
@@ -189,26 +184,25 @@ class Tile
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity
     glOrtho(coord0.lon, coord1.lon, coord0.lat, coord1.lat, -1, 1)
-    delta = Degrees.to_rad(5.0 / 3600.0)
-    coord0.lat.step(coord1.lat, delta) do |lat0|
-      lat1 = lat0 + delta
+    delta_lat = (coord1.lat - coord0.lat) / 4
+    delta_lon = (coord1.lon - coord0.lon) / 4
+    coord0.lat.step(coord1.lat, delta_lat) do |lat0|
       glBegin2(GL_QUAD_STRIP) do
         vertex(map, lat0, coord0.lon)
-        vertex(map, lat1, coord0.lon)
-        coord0.lon.step(coord1.lon, delta) do |lon0|
-          lon1 = lon0 + delta
-          vertex(map, lat0, lon1)
-          vertex(map, lat1, lon1)
+        vertex(map, lat0 + delta_lat, coord0.lon)
+        coord0.lon.step(coord1.lon, delta_lon) do |lon0|
+          vertex(map, lat0, lon0 + delta_lon)
+          vertex(map, lat0 + delta_lat, lon0 + delta_lon)
         end
       end
     end
-    Magick::Image.new_from_gl(0, 0, 256, 256).flip!.flop!
+    Magick::Image.new_from_gl(0, 0, 256, 256).flip!
   end
 
   def vertex(map, lat, lon)
     grid = Geoid::NationalGrid.wgs84_coord_to_grid(Coord.new(lat, lon, 0.0))
     s = (grid.east - map.grid0.east) / (map.grid1.east - map.grid0.east)
-    t = 1.0 - (grid.north - map.grid0.north) / (map.grid1.north - map.grid0.north)
+    t = (map.grid1.north - grid.north) / (map.grid1.north - map.grid0.north)
     glTexCoord2f(s, t)
     glVertex2f(lon, lat)
   end
@@ -235,13 +229,12 @@ class SuperStreet < Glut::Application
     return if @count != 2
     tile = Tile.new("0", 0, @north, @south, @east, @west, @zoom)
     list_style = KML::ListStyle.new(:listItemType => :checkHideChildren)
-    #style = KML::Style.new(list_style)
-    style = KML::Style.new
+    style = KML::Style.new(list_style)
     link = KML::Link.new(:href => tile.href, :viewRefreshMode => :onRegion)
     network_link = KML::NetworkLink.new(style, tile.region, link, :open => 1)
     document = KML::Document.new(network_link)
     File.open(@output, "w") do |io|
-      KML.new(document).write(io)
+      KML.new(document).write(io, "  ")
     end
     throw :exit
   end
