@@ -52,7 +52,6 @@ module Glut
   class Application
 
     def initialize(width, height)
-      glutInit
       glutInitDisplayMode(GLUT_RGB)
       glutInitWindowSize(width, height)
       @window = glutCreateWindow($0)
@@ -246,6 +245,7 @@ class SuperStreet < Glut::Application
 end
 
 def main(argv)
+  argv = glutInit(argv)
   bounds = []
   index = "superstreet.kml"
   directory = "."
@@ -253,8 +253,10 @@ def main(argv)
   #east, west = Degrees.new_from_s("3 45 W"), Degrees.new_from_s("3 54 W")
   #south, north = Degrees.new_from_s("54 30 N"), Degrees.new_from_s("54 40 N")
   #east, west = Degrees.new_from_s("3 14 W"), Degrees.new_from_s("3 0 W")
-  south, north = Degrees.new_from_s("54 30 N"), Degrees.new_from_s("54 31 N")
-  east, west = Degrees.new_from_s("3 0 W"), Degrees.new_from_s("3 2 W")
+  #south, north = Degrees.new_from_s("54 30 N"), Degrees.new_from_s("54 31 N")
+  #east, west = Degrees.new_from_s("3 0 W"), Degrees.new_from_s("3 2 W")
+  south, north = Degrees.new_from_s("50 34 N"), Degrees.new_from_s("50 47 N")
+  east, west = Degrees.new_from_s("1 36 W"), Degrees.new_from_s("1 3 W")
   zoom = 3
   OptionParser.new do |op|
     op.on("--help", "help") do |arg|
