@@ -216,6 +216,8 @@ class SuperStreet < Glut::Application
     @directory = directory
     FileUtils.makedirs(@directory)
     @north, @south, @east, @west = north, south, east, west
+    @east, @west = @west, @east if @west > @east
+    @north, @south = @south, @north if @south > @north
     @zoom = zoom
     @count = 0
     super(256, 256)
