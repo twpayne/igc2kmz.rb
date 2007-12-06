@@ -18,8 +18,8 @@ module Magick
       texture = Gl.glGenTextures(1)[0]
       Gl.glBindTexture(Gl::GL_TEXTURE_2D, texture)
       tex_parameters.each { |pname, params| Gl.glTexParameteri(GL::GL_TEXTURE_2D, pname, params) }
-      data = export_pixels_to_str(0, 0, columns, rows, "RGB", Magick::CharPixel)
-      Gl.glTexImage2D(Gl::GL_TEXTURE_2D, 0, Gl::GL_RGB, columns, rows, 0, Gl::GL_RGB, Gl::GL_UNSIGNED_BYTE, data)
+      data = export_pixels_to_str(0, 0, columns, rows, "RGBA", Magick::CharPixel)
+      Gl.glTexImage2D(Gl::GL_TEXTURE_2D, 0, Gl::GL_RGBA, columns, rows, 0, Gl::GL_RGBA, Gl::GL_UNSIGNED_BYTE, data)
       texture
     end
 
@@ -27,8 +27,8 @@ module Magick
 
       def new_from_gl(x, y, width, height)
         image = new(width, height) { self.depth = 8 }
-        data = Gl.glReadPixels(x, y, width, height, Gl::GL_RGB, Gl::GL_UNSIGNED_BYTE)
-        image.import_pixels(0, 0, width, height, "RGB", data, Magick::CharPixel)
+        data = Gl.glReadPixels(x, y, width, height, Gl::GL_RGBA, Gl::GL_UNSIGNED_BYTE)
+        image.import_pixels(0, 0, width, height, "RGBA", data, Magick::CharPixel)
         image
       end
 
@@ -52,7 +52,7 @@ module Glut
   class Application
 
     def initialize(width, height)
-      glutInitDisplayMode(GLUT_RGB)
+      glutInitDisplayMode(GLUT_RGBA)
       glutInitWindowSize(width, height)
       @window = glutCreateWindow($0)
       glutDisplayFunc(self.method(:display).to_proc) if self.respond_to?(:display)
