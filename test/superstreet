@@ -104,7 +104,7 @@ class Tile
   attr_reader :image
   attr_reader :href
 
-  def initialize(name, draw_order, north, south, east, west, zoom, map = nil, texture = nil)
+  def initialize(directory, name, draw_order, north, south, east, west, zoom, map = nil, texture = nil)
     @href = name + ".kml"
     lat_lon_alt_box = KML::LatLonAltBox.new(:north => north, :south => south, :east => east, :west => west)
     lod = KML::Lod.new(:minLodPixels => draw_order.zero? ? 0 : 128)
@@ -128,34 +128,34 @@ class Tile
         @image = render(map, coord0, coord1)
       elsif columns < 256
         @image = Magick::Image.new(256, 512) { self.depth = 8 }
-        tile = Tile.new(name + "0", draw_order + 1, north, (north + south) / 2, east, west, zoom, map, texture)
+        tile = Tile.new(directory, name + "0", draw_order + 1, north, (north + south) / 2, east, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "1", draw_order + 1, (north + south) / 2, south, east, west, zoom, map, texture)
+        tile = Tile.new(directory, name + "1", draw_order + 1, (north + south) / 2, south, east, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 256, Magick::ReplaceCompositeOp)
         @image.scale!(256, 256)
       elsif rows < 256
         @image = Magick::Image.new(512, 256) { self.depth = 8 }
-        tile = Tile.new(name + "0", draw_order + 1, north, south, (east + west) / 2, west, zoom, map, texture)
+        tile = Tile.new(directory, name + "0", draw_order + 1, north, south, (east + west) / 2, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "1", draw_order + 1, north, south, east, (east + west) / 2, zoom, map, texture)
+        tile = Tile.new(directory, name + "1", draw_order + 1, north, south, east, (east + west) / 2, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 256, 0, Magick::ReplaceCompositeOp)
         @image.scale!(256, 256)
       else
         @image = Magick::Image.new(512, 512) { self.depth = 8 }
-        tile = Tile.new(name + "0", draw_order + 1, north, (north + south) / 2, (east + west) / 2, west, zoom, map, texture)
+        tile = Tile.new(directory, name + "0", draw_order + 1, north, (north + south) / 2, (east + west) / 2, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "1", draw_order + 1, (north + south) / 2, south, (east + west) / 2, west, zoom, map, texture)
+        tile = Tile.new(directory, name + "1", draw_order + 1, (north + south) / 2, south, (east + west) / 2, west, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 0, 256, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "2", draw_order + 1, north, (north + south) / 2, east, (east + west) / 2, zoom, map, texture)
+        tile = Tile.new(directory, name + "2", draw_order + 1, north, (north + south) / 2, east, (east + west) / 2, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 256, 0, Magick::ReplaceCompositeOp)
-        tile = Tile.new(name + "3", draw_order + 1, (north + south) / 2, south, east, (east + west) / 2, zoom, map, texture)
+        tile = Tile.new(directory, name + "3", draw_order + 1, (north + south) / 2, south, east, (east + west) / 2, zoom, map, texture)
         document.add(tile.network_link)
         @image.composite!(tile.image, 256, 256, Magick::ReplaceCompositeOp)
         @image.scale!(256, 256)
@@ -168,12 +168,12 @@ class Tile
     end
     @image.format = "png"
     image_filename = name + "." + @image.format.downcase
-    @image.write(image_filename)
+    @image.write(File.join(directory, image_filename))
     icon = KML::Icon.new(:href => image_filename)
     lat_lon_box = KML::LatLonBox.new(:north => north, :south => south, :east => east, :west => west)
     ground_overlay = KML::GroundOverlay.new(icon, lat_lon_box, :drawOrder => draw_order)
     document.add(ground_overlay)
-    File.open(@href, "w") do |io|
+    File.open(File.join(directory, @href), "w") do |io|
       KML.new(document).write(io)
     end
     link = KML::Link.new(:href => @href, :viewRefreshMode => :onRegion)
@@ -211,8 +211,10 @@ end
 
 class SuperStreet < Glut::Application
 
-  def initialize(output, north, south, east, west, zoom)
-    @output = output
+  def initialize(index, directory, north, south, east, west, zoom)
+    @index = index
+    @directory = directory
+    FileUtils.makedirs(@directory)
     @north, @south, @east, @west = north, south, east, west
     @zoom = zoom
     @count = 0
@@ -227,13 +229,13 @@ class SuperStreet < Glut::Application
   def display
     @count += 1
     return if @count != 2
-    tile = Tile.new("0", 0, @north, @south, @east, @west, @zoom)
+    tile = Tile.new(@directory, "0", 0, @north, @south, @east, @west, @zoom)
     list_style = KML::ListStyle.new(:listItemType => :checkHideChildren)
     style = KML::Style.new(list_style)
-    link = KML::Link.new(:href => tile.href, :viewRefreshMode => :onRegion)
+    link = KML::Link.new(:href => File.join(@directory, tile.href), :viewRefreshMode => :onRegion)
     network_link = KML::NetworkLink.new(style, tile.region, link, :open => 1)
     document = KML::Document.new(network_link)
-    File.open(@output, "w") do |io|
+    File.open(@index, "w") do |io|
       KML.new(document).write(io)
     end
     throw :exit
@@ -243,21 +245,25 @@ end
 
 def main(argv)
   bounds = []
-  output = "superstreet.kml"
+  index = "superstreet.kml"
+  directory = "."
   #south, north = Degrees.new_from_s("53 04 N"), Degrees.new_from_s("53 08 N")
-  #east, west = Degrees.new_from_s("3 54 W"), Degrees.new_from_s("3 45 W")
+  #east, west = Degrees.new_from_s("3 45 W"), Degrees.new_from_s("3 54 W")
   #south, north = Degrees.new_from_s("54 30 N"), Degrees.new_from_s("54 40 N")
   #east, west = Degrees.new_from_s("3 14 W"), Degrees.new_from_s("3 0 W")
   south, north = Degrees.new_from_s("54 30 N"), Degrees.new_from_s("54 31 N")
-  east, west = Degrees.new_from_s("3 2 W"), Degrees.new_from_s("3 0 W")
+  east, west = Degrees.new_from_s("3 0 W"), Degrees.new_from_s("3 2 W")
   zoom = 3
   OptionParser.new do |op|
     op.on("--help", "help") do |arg|
       puts(op)
       return
     end
-    op.on("--output=FILENAME", String, "output") do |arg|
-      output = arg
+    op.on("--index=FILENAME", String, "index") do |arg|
+      index = arg
+    end
+    op.on("--directory=DIRECTORY", String, "directory") do |arg|
+      directory = arg
     end
     op.on("--north=NORTH", String, "north") do |arg|
       north = Degrees.new_from_s(arg)
@@ -277,7 +283,7 @@ def main(argv)
     op.parse!(argv)
   end
   catch :exit do
-    SuperStreet.new(output, north, south, east, west, zoom).main
+    SuperStreet.new(index, directory, north, south, east, west, zoom).main
   end
   nil
 end
