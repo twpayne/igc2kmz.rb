@@ -35,6 +35,9 @@ def main(argv)
     op.on("-d", "--filter-duplicate-fixes", "Filter duplicate fixes") do
       options.filter_duplicate_fixes = true
     end
+    op.on("-g", "--ground", "Show ground level in altitude graph") do
+      hints.ground = true
+    end
     op.on("-o", "--output FILENAME", String, "Output filename") do |arg|
       output = arg
     end

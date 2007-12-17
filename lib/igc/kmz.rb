@@ -312,6 +312,7 @@ class IGC
       hints = OpenStruct.new
       hints.animation_icon = KML::Icon.new(:href => "images/paraglider.png")
       hints.color = KML::Color.color("red")
+      hints.ground = false
       hints.league = XC::Open
       hints.photo_max_width = 4096
       hints.photo_max_height = 4096
@@ -740,8 +741,12 @@ class IGC
     kmz = KMZ.new(KML::Folder.new(:name => "Graphs", :styleUrl => hints.stock.radio_folder_style.url))
     kmz.merge(hints.stock.visible_none_folder)
     if altitude_data?
-      gl = @fixes.collect do |fix|
-        CGIARCSI::SRTM90mDEM[Radians.to_deg(fix.lat), Radians.to_deg(fix.lon)].constrain(hints.bounds.alt).constrain(nil, fix.alt)
+      if hints.ground
+        gl = @fixes.collect do |fix|
+          CGIARCSI::SRTM90mDEM[Radians.to_deg(fix.lat), Radians.to_deg(fix.lon)].constrain(hints.bounds.alt).constrain(nil, fix.alt)
+        end
+      else
+        gl = nil
       end
       kmz.merge(make_graph(hints, @fixes.collect(&:alt), gl, hints.scales.altitude, :visibility => 0))
       kmz.merge(make_graph(hints, @averages.collect(&:climb), nil, hints.scales.climb, :visibility => 0))
