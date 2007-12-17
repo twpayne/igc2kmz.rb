@@ -135,6 +135,13 @@ class Range
     (first <=> range.first).nonzero? or (last <=> range.last).nonzero? or 0
   end
 
+  def constrain(minimum = nil, maximum = nil)
+    minimum, maximum = minimum.first, minimum.last if minimum.is_a?(Range)
+    minimum = first > minimum ? first : minimum
+    maximum = last < maximum ? last : maximum
+    minimum..maximum
+  end
+
   def merge(range)
     start = first < range.first ? first : range.first
     if exclude_end?
