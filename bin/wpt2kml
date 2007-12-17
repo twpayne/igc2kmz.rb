@@ -132,7 +132,7 @@ def main
   end
   KML.new(KML::Folder.new(*folders.keys.sort.collect do |key|
     folders[key]
-  end)).pretty_write($stdout)
+  end)).write($stdout)
 end
 
 main if $0 == __FILE__
