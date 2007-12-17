@@ -369,8 +369,8 @@ class IGC
       end
       rows << ["Minimum altitude", hints.units[:altitude][@bounds.alt.first]]
       rows << ["Accumulated altitude gain", hints.units[:altitude][sum_alt_gain]]
-      rows << ["Maximum climb", hints.units[:climb][@bounds.climb.last]]
-      rows << ["Maximum sink", hints.units[:climb][@bounds.climb.first]]
+      rows << ["Maximum climb", hints.units[:climb][@averages.collect(&:climb).max]]
+      rows << ["Maximum sink", hints.units[:climb][@averages.collect(&:climb).min]]
     end
     rows << ["Created by", "<a href=\"http://maximumxc.com/\">maximumxc.com</a>"]
     KML::Description.new(KML::CData.new(rows.to_html_table))
