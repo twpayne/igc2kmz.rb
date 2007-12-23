@@ -6,12 +6,13 @@ class IGC
 
   class Average
 
-    attr_reader :speed, :climb, :glide
+    attr_reader :speed, :climb, :glide, :progress
 
-    def initialize(ds, dz, dt)
+    def initialize(ds, dz, dt, dp)
       @speed = ds / dt
       @climb = dz / dt
       @glide = Math.atan2(dz, ds)
+      @progress = ds.zero? ? 0.0 : dp / ds
     end
 
     def climb_or_glide
@@ -56,6 +57,7 @@ class IGC
     @bounds.speed = @averages.collect(&:speed).bounds(0.0, nil)
     @bounds.climb = @averages.collect(&:climb).bounds(-0.5, 0.5).constrain(-5.0, 5.0)
     @bounds.glide = @averages.collect(&:glide).bounds
+    @bounds.progress = (0.0)..(1.0)
     self
   end
 
@@ -69,29 +71,29 @@ class IGC
     end
     i0 = i1 = 0
     n = @fixes.length
-    k = t0 = z0 = s0 = t1 = z1 = s1 = nil
+    k = t0 = fix0 = s0 = t1 = fix1 = s1 = nil
     @averages = @fixes.collect do |fix|
       t0 = fix.time - 0.5 * dt
       i0 += 1 while @fixes[i0].time < t0
       if i0 == 0
-        z0 = @fixes[0].alt
+        fix0 = @fixes[0]
         s0 = s[0]
       else
         k = (t0 - @fixes[i0 - 1].time) / (@fixes[i0].time - @fixes[i0 - 1].time)
-        z0 = (1.0 - k) * @fixes[i0 - 1].alt + k * @fixes[i0].alt
+        fix0 = @fixes[i0 - 1].interpolate(@fixes[i0], k)
         s0 = (1.0 - k) * s[i0 - 1] + k * s[i0]
       end
       t1 = t0 + dt
       i1 += 1 while i1 < n and @fixes[i1].time < t1
       if i1 == n
-        z1 = @fixes[-1].alt
+        fix1 = @fixes[-1]
         s1 = s[-1]
       else
         k = (t1 - @fixes[i1 - 1].time) / (@fixes[i1].time - @fixes[i1 - 1].time)
-        z1 = (1.0 - k) * @fixes[i1 - 1].alt + k * @fixes[i1].alt
+        fix1 = @fixes[i1 - 1].interpolate(@fixes[i1], k)
         s1 = (1.0 - k) * s[i1 - 1] + k * s[i1]
       end
-      Average.new(s1 - s0, z1 - z0, dt)
+      Average.new(s1 - s0, fix1.alt - fix0.alt, dt, fix0.distance_to(fix1))
     end
   end
 

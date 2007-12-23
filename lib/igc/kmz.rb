@@ -392,6 +392,7 @@ class IGC
     hints.scales.altitude = Scale.new("altitude", hints.bounds.alt, hints.units[:altitude])
     hints.scales.climb = ZeroCenteredScale.new("climb", hints.bounds.climb, hints.units[:climb])
     hints.scales.speed = Scale.new("speed", hints.bounds.speed, hints.units[:speed])
+    hints.scales.progress = Scale.new("progress", hints.bounds.progress, hints.units[:progress])
     fields = []
     fields << (hints.pilot || @header[:pilot]).to_xml if hints.pilot or @header[:pilot]
     fields << "#{hints.task.competition.to_xml} task #{hints.task.number}" if hints.task
@@ -482,6 +483,7 @@ class IGC
     else
       kmz.merge(make_colored_track_log(hints, @averages.collect(&:speed), hints.scales.speed))
     end
+    kmz.merge(make_colored_track_log(hints, @averages.collect(&:progress), hints.scales.progress, :visibility => 0))
     kmz.merge(make_monochromatic_track_log(hints, hints.color, hints.width, hints.altitude_mode, :name => "Solid color", :visibility => 0))
   end
 
@@ -752,6 +754,7 @@ class IGC
       kmz.merge(make_graph(hints, @averages.collect(&:climb), nil, hints.scales.climb, :visibility => 0))
     end
     kmz.merge(make_graph(hints, @averages.collect(&:speed), nil, hints.scales.speed, :visibility => 0))
+    kmz.merge(make_graph(hints, @averages.collect(&:progress), nil, hints.scales.progress, :visibility => 0))
   end
 
 end
