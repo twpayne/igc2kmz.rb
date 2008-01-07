@@ -313,7 +313,7 @@ class IGC
       hints.animation_icon = KML::Icon.new(:href => "images/paraglider.png")
       hints.color = KML::Color.color("red")
       hints.ground = false
-      hints.league = XC::Open
+      hints.league = nil
       hints.photo_max_width = 4096
       hints.photo_max_height = 4096
       hints.photo_tz_offset = 0
