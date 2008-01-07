@@ -79,6 +79,22 @@ class Array
     return left == length ? nil : left
   end
 
+  def strip_trailing_nils
+    last = -1
+    each_with_index do |element, index|
+      last = index unless element.nil?
+    end
+    last == -1 ? [] : self[0..last]
+  end
+
+  def to_h
+    result = {}
+    each_with_index do |element, index|
+      result[index] = element
+    end
+    result
+  end
+
 end
 
 class Class
