@@ -54,7 +54,10 @@ def main(args)
       meta = {"Trace GPS" => md[1]}
       unless FileTest.exist?(meta["Trace GPS"])
         $stderr.puts("\t#{meta["Trace GPS"]}") if verbose
-        open(uri + a["href"].sub(/\AigcShow/, "getIgcFile")) do |igc|
+        igc_uri = uri + a["href"]
+        igc_uri.host = "cfd.ffvl.fr"
+        igc_uri.path = "/cfd/getIgcFile.php"
+        open(igc_uri) do |igc|
           igc_data = igc.read
           File.open(meta["Trace GPS"], "w") do |file|
             file.write(igc_data)
