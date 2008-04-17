@@ -8,14 +8,14 @@ class IGC
 
     attr_reader :time
     attr_reader :validity
-    attr_reader :gnss_alt
+    attr_reader :pressure_alt
     attr_reader :extensions
 
-    def initialize(time, lat, lon, alt = 0, validity = 0, gnss_alt = 0, extensions = {})
+    def initialize(time, lat, lon, alt = 0, validity = 0, pressure_alt = 0, extensions = {})
       super(lat, lon, alt)
       @time = time
       @validity = validity
-      @gnss_alt = gnss_alt
+      @pressure_alt = pressure_alt
       @extensions = extensions
     end
 
@@ -167,7 +167,7 @@ class IGC
           @extensions.each do |extension|
             extensions[extension.code] = line[extension.bytes].to_i
           end
-          @fixes << Fix.new(time, lat, lon, $11.to_i, $10.to_sym, $12.to_i, extensions)
+          @fixes << Fix.new(time, lat, lon, $12.to_i, $10.to_sym, $11.to_i, extensions)
         rescue ArgumentError
         end
       when /\A[DEFJKL]/i
@@ -181,10 +181,10 @@ class IGC
     @bsignature = bdigest.hexdigest
     if @fixes.find { |fix| fix.alt.nonzero? }
       @altitude_data = true
-    elsif @fixes.find { |fix| fix.gnss_alt.nonzero? }
+    elsif @fixes.find { |fix| fix.pressure_alt.nonzero? }
       @altitude_data = true
       @fixes.each do |fix|
-        fix.alt = fix.gnss_alt
+        fix.alt = fix.pressure_alt
       end
     else
       @altitude_data = false
