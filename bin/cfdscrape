@@ -31,7 +31,7 @@ def main(args)
   header = {}
   Net::HTTP.start("cfd.ffvl.fr") do |http|
     if year
-      http.request_get("/cfd/cfd.php?cfdYear=#{year}") do |response|
+      http.request_get("http://parapente.ffvl.fr/node/894/#{year}") do |response|
         header["Cookie"] = response["set-cookie"]
       end
     end
