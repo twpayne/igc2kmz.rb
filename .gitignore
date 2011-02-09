@@ -1,0 +1,8 @@
+*.o
+*.so
+ext/ccgiarcsi/Makefile
+ext/ccgiarcsi/ccgiarcsi.c
+ext/ccoord/Makefile
+ext/cgeometry/Makefile
+ext/cxc/Makefile
+ext/ratcliff/Makefile
