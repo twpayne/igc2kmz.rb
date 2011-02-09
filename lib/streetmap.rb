@@ -21,7 +21,7 @@ module Streetmap
     attr_reader :grid1
 
     def initialize(bounds, zoom = 3, tilesdir = "tmp/cache/streetmap/tiles")
-      raise ArgumentError unless 3..5 == zoom
+      raise ArgumentError unless (3..5) === zoom
       grid0, grid1 = bounds
       grid0 = Geoid::NationalGrid.gr_to_grid(grid0) if grid0.is_a?(String)
       grid1 = Geoid::NationalGrid.gr_to_grid(grid1) if grid1.is_a?(String)

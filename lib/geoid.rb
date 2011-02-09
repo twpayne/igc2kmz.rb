@@ -247,8 +247,8 @@ module Geoid
     end
 
     def grid_to_gr(grid, figures = 6)
-      raise ArgumentError unless 0..700_000 === grid.east
-      raise ArgumentError unless 0..1_300_000 === grid.north
+      raise ArgumentError unless (0..700_000) === grid.east
+      raise ArgumentError unless (0..1_300_000) === grid.north
       raise ArgumentError unless figures % 2 == 0
       east, x = grid.east.divmod(100_000)
       north, y = grid.north.divmod(100_000)
